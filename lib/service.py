@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from lib.lottery import lottery
 from lib.send_coins import send_coins
+from lib.quiz import quiz
 
 
 class Service:
@@ -14,7 +15,7 @@ class Service:
         self.client = amino.Client()
 
     def run(self):
-        print("1. lottery\n2. send_coins")
+        print("1. lottery\n2. send_coins\n3. quiz")
         while True:
             try:
                 inp = input(">>> ")
@@ -28,5 +29,9 @@ class Service:
                     for x, account in enumerate(self.bots.items(), 1):
                         send_coins(client=self.client, account=account, x=x, blog_id=blog_id, com_id=com_id)
                     print("[send_coins]: Finish.")
+                if inp == "3":
+                    quiz_link = input("Quiz link: ")
+                    quiz(client=self.client, com_id=com_id, quiz_link=quiz_link)
+                    print("[quiz]: Finish.")
             except Exception as e:
                 print(e)
