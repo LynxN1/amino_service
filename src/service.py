@@ -7,10 +7,10 @@ from pathlib import Path
 
 import amino
 
-with open(os.getcwd() + "/lib/devices/devices.txt", "r") as file:
+with open(os.getcwd() + "/src/devices/devices.txt", "r") as file:
     devices = file.readlines()
 
-path = Path(os.getcwd() + '/lib/accounts/bots.json')
+path = Path(os.getcwd() + '/src/accounts/bots.json')
 accounts = json.loads(path.read_text(encoding='utf-8'))
 
 
