@@ -15,9 +15,9 @@ accounts = json.loads(path.read_text(encoding='utf-8'))
 
 
 def run():
-    try:
-        com_id = input("Community ID: ")
-        while True:
+    com_id = input("Community ID: ")
+    while True:
+        try:
             choice = input("0. Change Community\n"
                            "1. PlayLottery\n"
                            "2. SendCoins\n"
@@ -34,8 +34,9 @@ def run():
                 print("[PlayQuiz]: Finish.")
             elif choice == "0":
                 com_id = input("Community ID: ")
-    except:
-        print(traceback.format_exc())
+                print("Community ID changed")
+        except:
+            print(traceback.format_exc())
 
 
 class PlayLottery:
@@ -191,7 +192,8 @@ class PlayQuiz:
 
         if "quizInBestQuizzes" in quiz_info["blog"]["extensions"]:
             for i in range(2):
-                subclient.play_quiz(quizId=quiz_id, questionIdsList=questions_list, answerIdsList=answers_list, quizMode=i)
+                subclient.play_quiz(quizId=quiz_id, questionIdsList=questions_list, answerIdsList=answers_list,
+                                    quizMode=i)
         else:
             subclient.play_quiz(quizId=quiz_id, questionIdsList=questions_list, answerIdsList=answers_list, quizMode=0)
 
