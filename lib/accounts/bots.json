@@ -1,6 +1,4 @@
 {
-  "email": "password",
-  "email2": "password2",
-  "email3": "password3",
-  "email4": "password4"
+  "email@mail.com": "password",
+  "email2@mail.com": "password"
 }

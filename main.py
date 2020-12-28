@@ -1,7 +1,11 @@
-from lib.service import Service
+import traceback
 
-service = Service()
+import lib.service as service
 
 if __name__ == '__main__':
     print("Start service")
-    service.run()
+    try:
+        service.run()
+    except:
+        print(traceback.format_exc())
+        exit(0)

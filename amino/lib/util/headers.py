@@ -2,6 +2,7 @@ from amino.lib.util import device
 
 sid = None
 
+
 class Headers:
     def __init__(self, device = device.DeviceGenerator(), data = None, type = None):
         headers = {

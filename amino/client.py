@@ -55,7 +55,10 @@ class Client:
             "timestamp": int(timestamp() * 1000)
         })
 
-        response = requests.post(f"{self.api}/g/s/auth/login", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        header = headers.Headers(data=data).headers
+        header["NDCDEVICEID"] = self.device_id
+
+        response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
