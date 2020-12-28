@@ -22,6 +22,7 @@ def run():
                            "1. PlayLottery\n"
                            "2. SendCoins\n"
                            "3. PlayQuiz\n"
+                           "4. LikeBlog\n"
                            ">>> ")
             if choice == "1":
                 PlayLottery(com_id)
@@ -32,6 +33,9 @@ def run():
             elif choice == "3":
                 PlayQuiz(com_id)
                 print("[PlayQuiz]: Finish.")
+            elif choice == "4":
+                LikeBlog(com_id)
+                print("[LikeBlog]: Finish.")
             elif choice == "0":
                 com_id = input("Community ID: ")
                 print("Community ID changed")
@@ -69,12 +73,11 @@ class PlayLottery:
             except amino.exceptions.InvalidEmail:
                 print(f"[{email}]: Invalid Email")
                 return
+            except amino.exceptions.AccountDoesntExist:
+                print(f"[{email}]: Account does not exist")
+                return
 
-        try:
-            sub_client = amino.SubClient(comId=self.com_id, profile=self.client.profile)
-        except Exception as e:
-            print(f"[{email}][Exception]:\n{e}")
-            return
+        sub_client = amino.SubClient(comId=self.com_id, profile=self.client.profile)
 
         try:
             sub_client.lottery()
@@ -118,12 +121,11 @@ class SendCoins:
             except amino.exceptions.InvalidEmail:
                 print(f"[{email}]: Invalid Email")
                 return
+            except amino.exceptions.AccountDoesntExist:
+                print(f"[{email}]: Account does not exist")
+                return
 
-        try:
-            sub_client = amino.SubClient(comId=self.com_id, profile=self.client.profile)
-        except Exception as e:
-            print(f"[{email}][Exception]:\n{e}")
-            return
+        sub_client = amino.SubClient(comId=self.com_id, profile=self.client.profile)
 
         coins = int(self.client.get_wallet_info().totalCoins)
         if coins == 0:
@@ -170,6 +172,9 @@ class PlayQuiz:
                 print("[quiz]: Invalid Password")
             except amino.exceptions.InvalidEmail:
                 print("[quiz]: Invalid Email")
+            except amino.exceptions.AccountDoesntExist:
+                print(f"[{email}]: Account does not exist")
+                return
 
         subclient = amino.SubClient(comId=self.com_id, profile=self.client.profile)
         quiz_id = subclient.get_from_code(str(self.quiz_link.split('/')[-1])).objectId
@@ -199,3 +204,43 @@ class PlayQuiz:
 
         print(f"[quiz]: Passed the quiz!")
         print(f"[quiz]: Score: {subclient.get_quiz_rankings(quizId=quiz_id).profile.highestScore}")
+
+
+class LikeBlog:
+    def __init__(self, com_id: str):
+        self.com_id = com_id
+        self.client = amino.Client()
+        blog_link = input("Blog link: ")
+        self.blog_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+        pool = Pool(10)
+        pool.map(self.like_blog, accounts.items())
+
+    def like_blog(self, account: dict):
+        email = account[0]
+        password = account[1]
+        while True:
+            try:
+                print(f"[Login][{email}]: {self.client.login(email=email, password=password)}")
+                break
+            except amino.exceptions.ActionNotAllowed:
+                print("Change device_id")
+                self.client.device_id = devices[random.randint(1, len(devices))].replace("\n", "")
+                continue
+            except amino.exceptions.FailedLogin:
+                print(f"[{email}]: Failed Login")
+                return
+            except amino.exceptions.InvalidAccountOrPassword:
+                print(f"[{email}]: Invalid account or password.")
+                return
+            except amino.exceptions.InvalidPassword:
+                print(f"[{email}]: Invalid Password")
+                return
+            except amino.exceptions.InvalidEmail:
+                print(f"[{email}]: Invalid Email")
+                return
+            except amino.exceptions.AccountDoesntExist:
+                print(f"[{email}]: Account does not exist")
+                return
+
+        sub_client = amino.SubClient(comId=self.com_id, profile=self.client.profile)
+        print(f"[{email}][like]: {sub_client.like_blog(blogId=self.blog_id)}")

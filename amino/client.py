@@ -13,6 +13,7 @@ from .lib.util import exceptions, headers, device, objects
 
 device = device.DeviceGenerator()
 
+
 class Client:
     def __init__(self, proxies: dict = None, certificatePath = None):
         self.api = "https://service.narvii.com/api/v1"
