@@ -315,7 +315,7 @@ class InvalidVoiceNote(Exception):
 
 class RequestedNoLongerExists(Exception):
     """
-    - **API Code** : 500, 700, 1600
+    - **API Code** : 400, 500, 700, 1600
     - **API Message** : Sorry, the requested data no longer exists. Try refreshing the view.
     - **API String** : ``Unknown String``
     """
@@ -758,7 +758,7 @@ def CheckException(data):
     elif api_code == 300: raise BadImage(data)
     elif api_code == 313: raise InvalidThemepack(data)
     elif api_code == 314: raise InvalidVoiceNote(data)
-    elif api_code == 500 or api_code == 700 or api_code == 1600: raise RequestedNoLongerExists(data)
+    elif api_code == 400 or api_code == 500 or api_code == 700 or api_code == 1600: raise RequestedNoLongerExists(data)
     elif api_code == 503: raise PageRepostedTooRecently(data)
     elif api_code == 551: raise InsufficientLevel(data)
     elif api_code == 702: raise WallCommentingDisabled(data)

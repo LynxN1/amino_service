@@ -59,7 +59,12 @@ class Client:
         header = headers.Headers(data=data).headers
         header["NDCDEVICEID"] = self.device_id
 
-        response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
@@ -330,7 +335,12 @@ class Client:
             "timestamp": int(timestamp() * 1000)
         })
 
-        response = requests.post(f"{self.api}/g/s/device", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/g/s/device", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: self.configured = True; return response.status_code
 

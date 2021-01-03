@@ -178,9 +178,14 @@ class SubClient(client.Client):
             "timestamp": int(timestamp() * 1000)
         })
 
-        response = requests.post(f"{self.api}/x{self.comId}/s/check-in/lottery",
-                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                 verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/x{self.comId}/s/check-in/lottery",
+                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                         verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -312,16 +317,28 @@ class SubClient(client.Client):
             if isinstance(blogId, str):
                 data["eventSource"] = "UserProfileView"
                 data = json.dumps(data)
-                response = requests.post(f"{self.api}/x{self.comId}/s/blog/{blogId}/vote?cv=1.2",
-                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
+
+                while True:
+                    try:
+                        response = requests.post(f"{self.api}/x{self.comId}/s/blog/{blogId}/vote?cv=1.2",
+                                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                                 verify=self.certificatePath)
+                        break
+                    except requests.exceptions.ConnectionError:
+                        print("ConnectionError")
 
             elif isinstance(blogId, list):
                 data["targetIdList"] = blogId
                 data = json.dumps(data)
-                response = requests.post(f"{self.api}/x{self.comId}/s/feed/vote",
-                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
+
+                while True:
+                    try:
+                        response = requests.post(f"{self.api}/x{self.comId}/s/feed/vote",
+                                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                                 verify=self.certificatePath)
+                        break
+                    except requests.exceptions.ConnectionError:
+                        print("ConnectionError")
 
             else:
                 raise exceptions.WrongType
@@ -329,9 +346,15 @@ class SubClient(client.Client):
         elif wikiId:
             data["eventSource"] = "PostDetailView"
             data = json.dumps(data)
-            response = requests.post(f"{self.api}/x{self.comId}/s/item/{wikiId}/vote?cv=1.2",
-                                     headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                     verify=self.certificatePath)
+
+            while True:
+                try:
+                    response = requests.post(f"{self.api}/x{self.comId}/s/item/{wikiId}/vote?cv=1.2",
+                                             headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                             verify=self.certificatePath)
+                    break
+                except requests.exceptions.ConnectionError:
+                    print("ConnectionError")
 
         else:
             raise exceptions.SpecifyType()
@@ -633,8 +656,14 @@ class SubClient(client.Client):
         if url is None: raise exceptions.SpecifyType()
 
         data = json.dumps(data)
-        response = requests.post(url, headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                 verify=self.certificatePath)
+
+        while True:
+            try:
+                response = requests.post(url, headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                         verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1277,9 +1306,14 @@ class SubClient(client.Client):
             "timestamp": int(timestamp() * 1000)
         })
 
-        response = requests.post(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result",
-                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                 verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result",
+                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                         verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1802,8 +1836,13 @@ class SubClient(client.Client):
             return objects.BlogCategoryList(json.loads(response.text)["blogCategoryList"]).BlogCategoryList
 
     def get_quiz_rankings(self, quizId: str, start: int = 0, size: int = 25):
-        response = requests.get(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result?start={start}&size={size}",
-                                headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.get(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result?start={start}&size={size}",
+                                        headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                print("get_quiz_rankings Error")
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -2390,30 +2429,3 @@ class SubClient(client.Client):
             return exceptions.CheckException(json.loads(response.text))
         else:
             return objects.BlogList(json.loads(response.text)["blogList"]).BlogList
-
-    def send_action(self, actions: list, blogId: str = None, quizId: str = None, lastAction: bool = False):
-        # Action List
-        # Browsing
-
-        if lastAction is True:
-            t = 306
-        else:
-            t = 304
-
-        data = {
-            "o": {
-                "actions": actions,
-                "target": f"ndc://x{self.comId}/",
-                "ndcId": int(self.comId),
-                "params": {"topicIds": [45841, 17254, 26542, 42031, 22542, 16371, 6059, 41542, 15852]},
-                "id": "831046"
-            },
-            "t": t
-        }
-
-        if blogId is not None or quizId is not None:
-            data["target"] = f"ndc://x{self.comId}/blog/{blogId}"
-            if blogId is not None: data["params"]["blogType"] = 0
-            if quizId is not None: data["params"]["blogType"] = 6
-
-        return self.socket.send(json.dumps(data))
