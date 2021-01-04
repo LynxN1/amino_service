@@ -1,0 +1,11 @@
+====================
+||      Menu      ||
+====================
+||- 0. Change Community
+||- 1. PlayLottery
+||- 2. SendCoins
+||- 3. PlayQuiz
+||- 4. LikeBlog
+||- 5. Unfollow
+||- 6. Activity
+====================
