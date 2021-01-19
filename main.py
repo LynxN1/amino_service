@@ -1,8 +1,8 @@
+import os
 from colorama import init
 from termcolor import colored
 from src import __version__, __author__
 from src.service import ServiceApp
-import os
 
 init()
 

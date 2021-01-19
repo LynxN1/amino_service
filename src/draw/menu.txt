@@ -8,4 +8,6 @@
 ||- 4. LikeBlog
 ||- 5. Unfollow
 ||- 6. Activity
+||- 7. Join bots to chat
+||- 8. Join bots to community
 ====================
