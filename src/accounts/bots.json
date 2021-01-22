@@ -1,5 +1,10 @@
-{
-  "email1@mail.com": "password",
-  "email2@mail.com": "password",
-  "email3@mail.com": "password"
-}
+[
+  {
+    "email": "email1@mail.com",
+    "password": "123456"
+  },
+  {
+    "email": "email2@mail.com",
+    "password": "1234567qwe"
+  }
+]

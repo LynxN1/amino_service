@@ -75,7 +75,29 @@ class Client:
             self.account: objects.UserProfile = objects.UserProfile(self.json["account"]).UserProfile
             self.profile: objects.UserProfile = objects.UserProfile(self.json["userProfile"]).UserProfile
             headers.sid = self.sid
-            return response.status_code
+            return response.text
+
+    def login_sid(self, SID: str):
+        """
+        Login into an account with an SID
+        **Parameters**
+            - **SID** : SID of the account
+        """
+        event = self.get_eventlog()
+        self.authenticated = True
+        self.sid = SID
+        self.userId = event["auid"]
+        self.account: objects.UserProfile = self.get_user_info(self.userId)
+        self.profile: objects.UserProfile = self.get_user_info(self.userId)
+        headers.sid = self.sid
+
+    def get_eventlog(self):
+        response = requests.get(f"{self.api}/g/s/eventlog/profile?language=en", headers=headers.Headers().headers,
+                                proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200:
+            return exceptions.CheckException(json.loads(response.text))
+        else:
+            return json.loads(response.text)
 
     def register(self, nickname: str, email: str, password: str, deviceId: str = device.device_id):
         """

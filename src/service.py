@@ -1,27 +1,42 @@
+import os
 import amino
 import json
-import os
 import random
 import threading
 import time
 import traceback
 from multiprocessing import Pool
-from pathlib import Path
 from termcolor import colored
 
-with open(os.getcwd() + "/src/devices/devices.txt", "r") as file:
-    devices = file.readlines()
 
-with open(os.getcwd() + "/src/activity/comments.txt", "r") as comments_file:
-    comments = comments_file.readlines()
+def get_accounts():
+    with open(os.getcwd() + "/src/accounts/bots.json", "r") as accounts_file:
+        return json.loads(accounts_file.read())
 
-accounts = json.loads(Path(os.getcwd() + '/src/accounts/bots.json').read_text(encoding='utf-8'))
+
+def get_comments():
+    with open(os.getcwd() + "/src/activity/comments.txt", "r", encoding="utf-8") as comments_file:
+        return comments_file.readlines()
+
+
+def get_devices():
+    with open(os.getcwd() + "/src/devices/devices.txt", "r") as devices_file:
+        return devices_file.readlines()
 
 
 class Login:
-    def __init__(self, email: str):
+    def __init__(self, email: str = None, account: dict = None):
         self.client = amino.Client()
-        self.email = email
+        self.devices = get_devices()
+        self.accounts = get_accounts()
+        if email:
+            self.email = email
+        elif account:
+            self.email = account.get("email")
+            self.password = account.get("password")
+            self.sid = account.get("sid")
+        else:
+            pass
 
     def login(self):
         while True:
@@ -29,10 +44,11 @@ class Login:
             try:
                 print(f"Authorization {self.email}...")
                 self.client.login(email=self.email, password=password)
-                break
+                print("Authorization was successful")
+                self.save_auth_data(password)
+                return self.client
             except amino.exceptions.ActionNotAllowed:
-                print("Change device_id")
-                self.client.device_id = devices[random.randint(1, len(devices))].replace("\n", "")
+                self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
                 continue
             except amino.exceptions.FailedLogin:
                 print(f"[{self.email}]: Failed Login")
@@ -51,38 +67,76 @@ class Login:
                 continue
             except amino.exceptions.VerificationRequired as verify:
                 print(f"[Confirm your account]: {verify}")
-        print("Authorization was successful")
-        self.save_auth_data(password)
-        return self.client
 
-    def multilogin(self, password: str):
-        while True:
-            try:
-                print(f"[Login][{self.email}]: {self.client.login(email=self.email, password=password)}")
-                break
-            except amino.exceptions.ActionNotAllowed:
-                print("Change device_id")
-                self.client.device_id = devices[random.randint(1, len(devices))].replace("\n", "")
-                continue
-            except amino.exceptions.FailedLogin:
-                print(f"[{self.email}]: Failed Login")
-                return False
-            except amino.exceptions.InvalidAccountOrPassword:
-                print(f"[{self.email}]: Invalid account or password.")
-                return False
-            except amino.exceptions.InvalidPassword:
-                print(f"[{self.email}]: Invalid Password")
-                return False
-            except amino.exceptions.InvalidEmail:
-                print(f"[{self.email}]: Invalid Email")
-                return False
-            except amino.exceptions.AccountDoesntExist:
-                print(f"[{self.email}]: Account does not exist")
-                return False
-            except amino.exceptions.VerificationRequired as verify:
-                print(verify)
-                input("Confirm your account and press ENTER...")
-        return self.client
+    def multilogin(self):
+        if self.sid is None:
+            while True:
+                try:
+                    index = self.accounts.index({"email": self.email, "password": self.password})
+                    self.client.login(email=self.email, password=self.password)
+                    self.sid = self.client.sid
+                    self.save_sid(index)
+                    return self.client
+                except amino.exceptions.ActionNotAllowed:
+                    self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
+                    continue
+                except amino.exceptions.FailedLogin:
+                    print(f"[{self.email}]: Failed Login")
+                    return False
+                except amino.exceptions.InvalidAccountOrPassword:
+                    print(f"[{self.email}]: Invalid account or password.")
+                    return False
+                except amino.exceptions.InvalidPassword:
+                    print(f"[{self.email}]: Invalid Password")
+                    return False
+                except amino.exceptions.InvalidEmail:
+                    print(f"[{self.email}]: Invalid Email")
+                    return False
+                except amino.exceptions.AccountDoesntExist:
+                    print(f"[{self.email}]: Account does not exist")
+                    return False
+                except amino.exceptions.VerificationRequired as verify:
+                    print(verify)
+                    input("Confirm your account and press ENTER...")
+        else:
+            while True:
+                try:
+                    self.client.login_sid(self.sid)
+                    return self.client
+                except amino.exceptions.ActionNotAllowed:
+                    self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
+                    continue
+                except amino.exceptions.FailedLogin:
+                    print(f"[{self.email}]: Failed Login")
+                    return False
+                except amino.exceptions.InvalidAccountOrPassword:
+                    print(f"[{self.email}]: Invalid account or password.")
+                    return False
+                except amino.exceptions.InvalidPassword:
+                    print(f"[{self.email}]: Invalid Password")
+                    return False
+                except amino.exceptions.InvalidEmail:
+                    print(f"[{self.email}]: Invalid Email")
+                    return False
+                except amino.exceptions.AccountDoesntExist:
+                    print(f"[{self.email}]: Account does not exist")
+                    return False
+                except amino.exceptions.VerificationRequired as verify:
+                    print(verify)
+                    input("Confirm your account and press ENTER...")
+                except amino.exceptions.InvalidSession:
+                    index = self.accounts.index({"email": self.email, "password": self.password})
+                    self.client.device_id = random.choice(self.devices).replace("\n", "")
+                    self.client.login(email=self.email, password=self.password)
+                    self.sid = self.client.sid
+                    self.save_sid(index)
+
+    def save_sid(self, index: int):
+        with open("src/accounts/bots.json", "r") as accounts_file:
+            data = json.loads(accounts_file.read())
+        data[index]["sid"] = self.client.sid
+        with open("src/accounts/bots.json", "w") as accounts_file:
+            json.dump(data, accounts_file, indent=2)
 
     def get_password(self):
         with open("src/auth/data.json", "r") as f:
@@ -99,7 +153,7 @@ class Login:
             auth_data = json.load(f)
         with open("src/auth/data.json", "w") as f:
             auth_data.update({self.email: password})
-            json.dump(auth_data, f)
+            json.dump(auth_data, f, indent=2)
 
 
 class Community:
@@ -137,29 +191,41 @@ class Threads:
         return chats.chatId[int(choice_chat) - 1]
 
 
+class Log:
+    def __init__(self, text: str):
+        self.text = text
+
+    def replace_code(self):
+        if self.text == "200":
+            self.text = "Success"
+        return self.text
+
+
 class ServiceApp:
     def __init__(self):
-        self.pool_count = len(accounts) if len(accounts) <= 10 else 10
-        self.client = Login(input("Email: ")).login()
+        self.accounts = get_accounts()
+        self.pool_count = len(self.accounts) if len(self.accounts) <= 10 else 10
+        self.client = Login(email=input("Email: ")).login()
         self.com_id = Community(self.client).select()
         self.object_id = None
         self.back = False
 
     def run(self):
         while True:
+            self.accounts = get_accounts()
             try:
                 logo = open("src/draw/menu.txt", "r").read()
                 print(colored(logo, "cyan"))
                 choice = input("Enter the number >>> ")
                 if choice == "1":
                     pool = Pool(self.pool_count)
-                    pool.map(self.play_lottery, accounts.items())
+                    pool.map(self.play_lottery, self.accounts)
                     print("[PlayLottery]: Finish.")
                 elif choice == "2":
                     blog_link = input("Blog link: ")
                     self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
                     pool = Pool(self.pool_count)
-                    pool.map(self.send_coins, accounts.items())
+                    pool.map(self.send_coins, self.accounts)
                     print("[SendCoins]: Finish.")
                 elif choice == "3":
                     quiz_link = input("Quiz link: ")
@@ -170,7 +236,7 @@ class ServiceApp:
                     blog_link = input("Blog link: ")
                     self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
                     pool = Pool(self.pool_count)
-                    pool.map(self.like_blog, accounts.items())
+                    pool.map(self.like_blog, self.accounts)
                     print("[LikeBlog]: Finish.")
                 elif choice == "5":
                     self.unfollow()
@@ -182,27 +248,26 @@ class ServiceApp:
                     self.back = True
                     like_blogs.join()
                     self.back = False
-                    print("[LikeRecentBlogs]: Finish.")
+                    print("[Activity]: Finish.")
                 elif choice == "7":
                     self.object_id = Threads(self.client, self.com_id).select()
                     pool = Pool(self.pool_count)
-                    pool.map(self.join_bots_to_chat, accounts.items())
+                    pool.map(self.join_bots_to_chat, self.accounts)
                     print("[JoinBotsToChat]: Finish.")
                 elif choice == "8":
                     self.object_id = Community(self.client).select()
                     pool = Pool(self.pool_count)
-                    pool.map(self.join_bots_to_community, accounts.items())
+                    pool.map(self.join_bots_to_community, self.accounts)
                     print("[JoinBotsToCommunity]: Finish.")
                 elif choice == "0":
                     self.com_id = Community(self.client).select()
                     print("Community changed")
-            except:
+            except Exception:
                 print(traceback.format_exc())
 
     def play_lottery(self, account: dict):
-        email = account[0]
-        password = account[1]
-        self.client = Login(email).multilogin(password)
+        email = account.get("email")
+        self.client = Login(account=account).multilogin()
         if self.client is not False:
             sub_client = Community(self.client).sub_client(self.com_id)
 
@@ -214,15 +279,15 @@ class ServiceApp:
                 print(f"[{email}][Exception]:\n{e}")
 
     def send_coins(self, account: dict):
-        email = account[0]
-        password = account[1]
-        self.client = Login(email).multilogin(password)
+        email = account.get("email")
+        self.client = Login(account=account).multilogin()
         if self.client is not False:
             sub_client = Community(self.client).sub_client(self.com_id)
             coins = int(self.client.get_wallet_info().totalCoins)
             if coins != 0:
                 try:
-                    print(f"[{email}][send_coins]: {sub_client.send_coins(coins=coins, blogId=self.object_id)}")
+                    sub_client.send_coins(coins=coins, blogId=self.object_id)
+                    print(f"[{email}][send_coins]: {coins}")
                 except amino.exceptions.NotEnoughCoins:
                     print(f"[{email}][NotEnoughCoins][coins {coins}]")
                     return
@@ -254,26 +319,23 @@ class ServiceApp:
                     print(f"[quiz][{x}/{total_questions}]: Answer found!")
                     questions_list.append(question_id)
                     answers_list.append(answer_id)
-
         for i in range(2):
             try:
-                sub_client.play_quiz(quizId=self.object_id, questionIdsList=questions_list, answerIdsList=answers_list,
-                                     quizMode=i)
-            except:
+                sub_client.play_quiz(quizId=self.object_id, questionIdsList=questions_list, answerIdsList=answers_list, quizMode=i)
+            except amino.exceptions.InvalidRequest:
                 pass
         print(f"[quiz]: Passed the quiz!")
         print(f"[quiz]: Score: {sub_client.get_quiz_rankings(quizId=self.object_id).profile.highestScore}")
 
     def like_blog(self, account: dict):
-        email = account[0]
-        password = account[1]
-        self.client = Login(email).multilogin(password)
+        email = account.get("email")
+        self.client = Login(account=account).multilogin()
         if self.client is not False:
             sub_client = Community(self.client).sub_client(self.com_id)
             try:
-                print(f"[{email}][like]: {sub_client.like_blog(blogId=self.object_id)}")
+                print(f"[{email}][like]: {Log(str(sub_client.like_blog(blogId=self.object_id))).replace_code()}")
             except amino.exceptions.RequestedNoLongerExists:
-                print(f"[{email}][like]: {sub_client.like_blog(wikiId=self.object_id)}")
+                print(f"[{email}][like]: {Log(str(sub_client.like_blog(wikiId=self.object_id))).replace_code()}")
 
     def unfollow(self):
         sub_client = Community(self.client).sub_client(self.com_id)
@@ -291,6 +353,7 @@ class ServiceApp:
                         sub_client.unfollow(userId=user_id)
 
     def like_recent_blogs(self):
+        comments = get_comments()
         subclient = amino.SubClient(comId=self.com_id, profile=self.client.profile)
         old_blogs = []
         while not self.back:
@@ -312,17 +375,15 @@ class ServiceApp:
                     old_blogs.append(blog_id)
             time.sleep(5)
 
-    def join_bots_to_chat(self, account):
-        email = account[0]
-        password = account[1]
-        self.client = Login(email).multilogin(password)
+    def join_bots_to_chat(self, account: dict):
+        email = account.get("email")
+        self.client = Login(account=account).multilogin()
         if self.client is not False:
             sub_client = Community(self.client).sub_client(self.com_id)
-            print(f"[{email}][Join to chat]: {sub_client.join_chat(chatId=self.object_id)}")
+            print(f"[{email}][Join to chat]: {Log(str(sub_client.join_chat(chatId=self.object_id))).replace_code()}")
 
-    def join_bots_to_community(self, account):
-        email = account[0]
-        password = account[1]
-        self.client = Login(email).multilogin(password)
+    def join_bots_to_community(self, account: dict):
+        email = account.get("email")
+        self.client = Login(account=account).multilogin()
         if self.client is not False:
-            print(f"[{email}][Join to community]: {self.client.join_community(comId=self.object_id)}")
+            print(f"[{email}][Join to community]: {Log(str(self.client.join_community(comId=self.object_id))).replace_code()}")
