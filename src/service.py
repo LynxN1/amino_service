@@ -48,23 +48,17 @@ class Login:
                 self.save_auth_data(password)
                 return self.client
             except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
-                continue
+                self.client.device_id = random.choice(self.devices).replace("\n", "")
             except amino.exceptions.FailedLogin:
                 print(f"[{self.email}]: Failed Login")
-                continue
             except amino.exceptions.InvalidAccountOrPassword:
                 print(f"[{self.email}]: Invalid account or password.")
-                continue
             except amino.exceptions.InvalidPassword:
                 print(f"[{self.email}]: Invalid Password")
-                continue
             except amino.exceptions.InvalidEmail:
                 print(f"[{self.email}]: Invalid Email")
-                continue
             except amino.exceptions.AccountDoesntExist:
                 print(f"[{self.email}]: Account does not exist")
-                continue
             except amino.exceptions.VerificationRequired as verify:
                 print(f"[Confirm your account]: {verify}")
 
@@ -78,8 +72,7 @@ class Login:
                     self.save_sid(index)
                     return self.client
                 except amino.exceptions.ActionNotAllowed:
-                    self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
-                    continue
+                    self.client.device_id = random.choice(self.devices).replace("\n", "")
                 except amino.exceptions.FailedLogin:
                     print(f"[{self.email}]: Failed Login")
                     return False
@@ -104,8 +97,7 @@ class Login:
                     self.client.login_sid(self.sid)
                     return self.client
                 except amino.exceptions.ActionNotAllowed:
-                    self.client.device_id = self.devices[random.randint(1, len(self.devices))].replace("\n", "")
-                    continue
+                    self.client.device_id = random.choice(self.devices).replace("\n", "")
                 except amino.exceptions.FailedLogin:
                     print(f"[{self.email}]: Failed Login")
                     return False
