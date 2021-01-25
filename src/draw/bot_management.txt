@@ -1,0 +1,13 @@
+====================
+||      Menu      ||
+====================
+||- b. Back
+||- 0. Add accounts from bots.txt to bots.json
+||- 1. PlayLottery
+||- 2. SendCoins
+||- 3. LikeBlog
+||- 4. Join bots to chat
+||- 5. Join bots to community
+||- 6. Send message to chat
+||- 7. Follow
+====================

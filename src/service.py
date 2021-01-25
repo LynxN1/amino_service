@@ -6,6 +6,7 @@ import threading
 import time
 import traceback
 from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from termcolor import colored
 
 
@@ -24,127 +25,132 @@ def get_devices():
         return devices_file.readlines()
 
 
-class Login:
-    def __init__(self, email: str = None, account: dict = None):
-        self.client = amino.Client()
-        self.devices = get_devices()
-        self.accounts = get_accounts()
-        if email:
-            self.email = email
-        elif account:
-            self.email = account.get("email")
-            self.password = account.get("password")
-            self.sid = account.get("sid")
-        else:
-            pass
+def set_bots():
+    accounts = []
+    with open(os.getcwd() + "/src/accounts/bots.txt", "r") as bots_file:
+        bots = bots_file.readlines()
+    for account in bots:
+        split = account.split(":")
+        email = split[0].replace("\n", "")
+        password = split[1].replace("\n", "")
+        accounts.append({"email": email, "password": password})
+    with open(os.getcwd() + "/src/accounts/bots.json", "w") as accounts_file:
+        json.dump(accounts, accounts_file, indent=2)
+    print("Ready!")
 
-    def login(self):
+
+class Login:
+    def __init__(self):
+        self.accounts = get_accounts()
+        self.client = amino.Client()
+
+    def login(self, email: str):
         while True:
-            password = self.get_password()
+            password = self.get_password(email)
             try:
-                print(f"Authorization {self.email}...")
-                self.client.login(email=self.email, password=password)
+                print(f"Authorization {email}...")
+                self.client.login(email=email, password=password)
                 print("Authorization was successful")
-                self.save_auth_data(password)
+                self.save_auth_data(email, password)
                 return self.client
             except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = random.choice(self.devices).replace("\n", "")
+                self.client.device_id = random.choice(get_devices()).replace("\n", "")
             except amino.exceptions.FailedLogin:
-                print(f"[{self.email}]: Failed Login")
+                print(f"[{email}]: Failed Login")
             except amino.exceptions.InvalidAccountOrPassword:
-                print(f"[{self.email}]: Invalid account or password.")
+                print(f"[{email}]: Invalid account or password.")
             except amino.exceptions.InvalidPassword:
-                print(f"[{self.email}]: Invalid Password")
+                print(f"[{email}]: Invalid Password")
             except amino.exceptions.InvalidEmail:
-                print(f"[{self.email}]: Invalid Email")
+                print(f"[{email}]: Invalid Email")
             except amino.exceptions.AccountDoesntExist:
-                print(f"[{self.email}]: Account does not exist")
+                print(f"[{email}]: Account does not exist")
             except amino.exceptions.VerificationRequired as verify:
                 print(f"[Confirm your account]: {verify}")
 
-    def multilogin(self):
-        if self.sid is None:
-            while True:
-                try:
-                    index = self.accounts.index({"email": self.email, "password": self.password})
-                    self.client.login(email=self.email, password=self.password)
-                    self.sid = self.client.sid
-                    self.save_sid(index)
-                    return self.client
-                except amino.exceptions.ActionNotAllowed:
-                    self.client.device_id = random.choice(self.devices).replace("\n", "")
-                except amino.exceptions.FailedLogin:
-                    print(f"[{self.email}]: Failed Login")
-                    return False
-                except amino.exceptions.InvalidAccountOrPassword:
-                    print(f"[{self.email}]: Invalid account or password.")
-                    return False
-                except amino.exceptions.InvalidPassword:
-                    print(f"[{self.email}]: Invalid Password")
-                    return False
-                except amino.exceptions.InvalidEmail:
-                    print(f"[{self.email}]: Invalid Email")
-                    return False
-                except amino.exceptions.AccountDoesntExist:
-                    print(f"[{self.email}]: Account does not exist")
-                    return False
-                except amino.exceptions.VerificationRequired as verify:
-                    print(verify)
-                    input("Confirm your account and press ENTER...")
-        else:
-            while True:
-                try:
-                    self.client.login_sid(self.sid)
-                    return self.client
-                except amino.exceptions.ActionNotAllowed:
-                    self.client.device_id = random.choice(self.devices).replace("\n", "")
-                except amino.exceptions.FailedLogin:
-                    print(f"[{self.email}]: Failed Login")
-                    return False
-                except amino.exceptions.InvalidAccountOrPassword:
-                    print(f"[{self.email}]: Invalid account or password.")
-                    return False
-                except amino.exceptions.InvalidPassword:
-                    print(f"[{self.email}]: Invalid Password")
-                    return False
-                except amino.exceptions.InvalidEmail:
-                    print(f"[{self.email}]: Invalid Email")
-                    return False
-                except amino.exceptions.AccountDoesntExist:
-                    print(f"[{self.email}]: Account does not exist")
-                    return False
-                except amino.exceptions.VerificationRequired as verify:
-                    print(verify)
-                    input("Confirm your account and press ENTER...")
-                except amino.exceptions.InvalidSession:
-                    index = self.accounts.index({"email": self.email, "password": self.password})
-                    self.client.device_id = random.choice(self.devices).replace("\n", "")
-                    self.client.login(email=self.email, password=self.password)
-                    self.sid = self.client.sid
-                    self.save_sid(index)
+    def check_accounts(self):
+        print("Checking accounts...")
+        bad_accounts = []
+        for i in self.accounts:
+            if i.get("sid") is None:
+                bad_accounts.append(self.accounts.index(i))
+        if len(bad_accounts) > 0:
+            print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
+            pool = ThreadPool(10)
+            pool.map(self.set_sid, bad_accounts)
+            with open("src/accounts/bots.json", "w") as accounts_file:
+                json.dump(self.accounts, accounts_file, indent=2)
+            bad_accounts.clear()
 
-    def save_sid(self, index: int):
-        with open("src/accounts/bots.json", "r") as accounts_file:
-            data = json.loads(accounts_file.read())
-        data[index]["sid"] = self.client.sid
-        with open("src/accounts/bots.json", "w") as accounts_file:
-            json.dump(data, accounts_file, indent=2)
+    def set_sid(self, index: int):
+        client = amino.Client()
+        email = self.accounts[index].get("email")
+        password = self.accounts[index].get("password")
+        client.device_id = random.choice(get_devices()).replace("\n", "")
+        try:
+            client.device_id = random.choice(get_devices()).replace("\n", "")
+            client.login(email, password)
+            print(Log().align(email, "SID updated"))
+            self.accounts[index]["sid"] = client.sid
+        except amino.exceptions.FailedLogin:
+            print(Log().align(email, "Failed login"))
+        except amino.exceptions.InvalidAccountOrPassword:
+            print(Log().align(email, "Invalid account or password"))
+        except amino.exceptions.InvalidPassword:
+            print(Log().align(email, "Invalid Password"))
+        except amino.exceptions.InvalidEmail:
+            print(Log().align(email, "Invalid Email"))
+        except amino.exceptions.AccountDoesntExist:
+            print(Log().align(email, "Account does not exist"))
+        except amino.exceptions.VerificationRequired as verify:
+            print(Log().align(email, str(verify)))
 
-    def get_password(self):
+    def multilogin(self, account: dict):
+        email = account.get("email")
+        sid = account.get("sid")
+        while True:
+            try:
+                self.client.login_sid(sid)
+                return self.client
+            except amino.exceptions.ActionNotAllowed:
+                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+            except amino.exceptions.FailedLogin:
+                print(Log().align(email, "Failed login"))
+                return False
+            except amino.exceptions.InvalidAccountOrPassword:
+                print(Log().align(email, "Invalid account or password"))
+                return False
+            except amino.exceptions.InvalidPassword:
+                print(Log().align(email, "Invalid Password"))
+                return False
+            except amino.exceptions.InvalidEmail:
+                print(Log().align(email, "Invalid Email"))
+                return False
+            except amino.exceptions.AccountDoesntExist:
+                print(Log().align(email, "Account does not exist"))
+                return False
+            except amino.exceptions.VerificationRequired as verify:
+                print(Log().align(email, str(verify)))
+                return False
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+                return False
+
+    def get_password(self, email: str):
         with open("src/auth/data.json", "r") as f:
             auth_data = json.load(f)
         try:
-            password = auth_data[self.email]
+            password = auth_data[email]
             return password
         except (KeyError, IndexError, TypeError):
             password = input("Password: ")
             return password
 
-    def save_auth_data(self, password: str):
+    def save_auth_data(self, email: str, password: str):
         with open("src/auth/data.json", "r") as f:
             auth_data = json.load(f)
         with open("src/auth/data.json", "w") as f:
-            auth_data.update({self.email: password})
+            auth_data.update({email: password})
             json.dump(auth_data, f, indent=2)
 
 
@@ -154,6 +160,7 @@ class Community:
 
     def select(self):
         sub_clients = self.client.sub_clients(start=0, size=100)
+        print("Select the community:")
         for x, name in enumerate(sub_clients.name, 1):
             print(f"{x}. {name}")
         while True:
@@ -173,122 +180,169 @@ class Threads:
         self.sub_client = Community(client).sub_client(com_id)
 
     def select(self):
-        chats = self.sub_client.get_chat_threads(start=0, size=100)
+        get_chats = self.sub_client.get_chat_threads(start=0, size=100)
+        chat_list = []
         x = 0
-        for name, thread_type in zip(chats.title, chats.type):
+        print("Select the chat:")
+        for name, thread_type, chatid in zip(get_chats.title, get_chats.type, get_chats.chatId):
             if thread_type != 0:
                 x += 1
                 print(f"{x}. {name}")
-        choice_chat = input("\nEnter chat number: ")
-        return chats.chatId[int(choice_chat) - 1]
+                chat_list.append(chatid)
+        while True:
+            choice_chat = input("Enter chat number: ")
+            try:
+                return chat_list[int(choice_chat) - 1]
+            except IndexError:
+                print(colored("Invalid chat number", "red"))
 
 
 class Log:
-    def __init__(self, text: str):
-        self.text = text
-
-    def replace_code(self):
-        if self.text == "200":
-            self.text = "Success"
-        return self.text
+    def align(self, text: str, action: str):
+        spaces = 35 - len(text)
+        text = f"[{text}"
+        for _ in range(spaces):
+            text += " "
+        text += f"]: {action}"
+        return text
 
 
 class ServiceApp:
     def __init__(self):
-        self.accounts = get_accounts()
-        self.pool_count = len(self.accounts) if len(self.accounts) <= 10 else 10
-        self.client = Login(email=input("Email: ")).login()
+        self.pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
+        with open(os.getcwd() + "/src/auth/data.json", "r") as auth_file:
+            auth_data = json.loads(auth_file.read())
+            if auth_data:
+                for email in auth_data.keys():
+                    self.client = Login().login(email=email)
+            else:
+                self.client = Login().login(email=input("Email: "))
         self.com_id = Community(self.client).select()
         self.object_id = None
+        self.text = None
         self.back = False
 
     def run(self):
         while True:
-            self.accounts = get_accounts()
             try:
-                logo = open("src/draw/menu.txt", "r").read()
-                print(colored(logo, "cyan"))
-                choice = input("Enter the number >>> ")
-                if choice == "1":
-                    pool = Pool(self.pool_count)
-                    pool.map(self.play_lottery, self.accounts)
-                    print("[PlayLottery]: Finish.")
-                elif choice == "2":
-                    blog_link = input("Blog link: ")
-                    self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                    pool = Pool(self.pool_count)
-                    pool.map(self.send_coins, self.accounts)
-                    print("[SendCoins]: Finish.")
-                elif choice == "3":
-                    quiz_link = input("Quiz link: ")
-                    self.object_id = self.client.get_from_code(str(quiz_link.split('/')[-1])).objectId
-                    self.play_quiz()
-                    print("[PlayQuiz]: Finish.")
-                elif choice == "4":
-                    blog_link = input("Blog link: ")
-                    self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                    pool = Pool(self.pool_count)
-                    pool.map(self.like_blog, self.accounts)
-                    print("[LikeBlog]: Finish.")
-                elif choice == "5":
-                    self.unfollow()
-                    print("[Unfollow]: Finish.")
-                elif choice == "6":
-                    like_blogs = threading.Thread(target=self.like_recent_blogs)
-                    like_blogs.start()
-                    input("\nPress ENTER to stop...\n")
-                    self.back = True
-                    like_blogs.join()
-                    self.back = False
-                    print("[Activity]: Finish.")
-                elif choice == "7":
-                    self.object_id = Threads(self.client, self.com_id).select()
-                    pool = Pool(self.pool_count)
-                    pool.map(self.join_bots_to_chat, self.accounts)
-                    print("[JoinBotsToChat]: Finish.")
-                elif choice == "8":
-                    self.object_id = Community(self.client).select()
-                    pool = Pool(self.pool_count)
-                    pool.map(self.join_bots_to_community, self.accounts)
-                    print("[JoinBotsToCommunity]: Finish.")
-                elif choice == "0":
+                print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
+                management_choice = input("Enter the number >>> ")
+                if management_choice == "0":
                     self.com_id = Community(self.client).select()
-                    print("Community changed")
+                elif management_choice == "1":
+                    back = False
+                    while not back:
+                        print(colored(open("src/draw/account_management.txt", "r").read(), "cyan"))
+                        choice = input("Enter the number >>> ")
+                        if choice == "1":
+                            quiz_link = input("Quiz link: ")
+                            self.object_id = self.client.get_from_code(str(quiz_link.split('/')[-1])).objectId
+                            self.play_quiz()
+                            print("[PlayQuiz]: Finish.")
+                        elif choice == "2":
+                            self.unfollow()
+                            print("[Unfollow]: Finish.")
+                        elif choice == "3":
+                            like_blogs = threading.Thread(target=self.like_recent_blogs)
+                            like_blogs.start()
+                            input("\nPress ENTER to stop...\n")
+                            self.back = True
+                            like_blogs.join()
+                            self.back = False
+                            print("[Activity]: Finish.")
+                        elif choice == "b":
+                            back = True
+                elif management_choice == "2":
+                    Login().check_accounts()
+                    back = False
+                    while not back:
+                        print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
+                        choice = input("Enter the number >>> ")
+                        if choice == "0":
+                            set_bots()
+                            input("Changes saved. Please restart the program...")
+                            exit(0)
+                        elif choice == "1":
+                            pool = Pool(self.pool_count)
+                            pool.map(self.play_lottery, get_accounts())
+                            print("[PlayLottery]: Finish.")
+                        elif choice == "2":
+                            blog_link = input("Blog link: ")
+                            self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                            pool = Pool(self.pool_count)
+                            pool.map(self.send_coins, get_accounts())
+                            print("[SendCoins]: Finish.")
+                        elif choice == "3":
+                            blog_link = input("Blog link: ")
+                            self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                            pool = Pool(self.pool_count)
+                            pool.map(self.like_blog, get_accounts())
+                            print("[LikeBlog]: Finish.")
+                        elif choice == "4":
+                            self.object_id = Threads(self.client, self.com_id).select()
+                            pool = Pool(self.pool_count)
+                            pool.map(self.join_bots_to_chat, get_accounts())
+                            print("[JoinBotsToChat]: Finish.")
+                        elif choice == "5":
+                            self.object_id = Community(self.client).select()
+                            pool = Pool(self.pool_count)
+                            pool.map(self.join_bots_to_community, get_accounts())
+                            print("[JoinBotsToCommunity]: Finish.")
+                        elif choice == "6":
+                            self.object_id = Threads(self.client, self.com_id).select()
+                            self.text = input("Message text: ")
+                            pool = Pool(self.pool_count)
+                            pool.map(self.send_message, get_accounts())
+                            print("[SendMessage]: Finish.")
+                        elif choice == "7":
+                            user_link = input("Link to user: ")
+                            self.object_id = self.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                            pool = Pool(self.pool_count)
+                            pool.map(self.follow, get_accounts())
+                            print("[Follow]: Finish.")
+                        elif choice == "b":
+                            back = True
             except Exception:
                 print(traceback.format_exc())
 
     def play_lottery(self, account: dict):
         email = account.get("email")
-        self.client = Login(account=account).multilogin()
-        if self.client is not False:
-            sub_client = Community(self.client).sub_client(self.com_id)
-
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
             try:
                 sub_client.lottery()
             except amino.exceptions.AlreadyPlayedLottery:
-                print(f"[{email}]: AlreadyPlayedLottery")
+                print(Log().align(email, "AlreadyPlayedLottery"))
+            except amino.exceptions.YouAreBanned:
+                print(Log().align(email, "You are banned"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
             except Exception as e:
-                print(f"[{email}][Exception]:\n{e}")
+                print(Log().align(email, str(e)))
 
     def send_coins(self, account: dict):
         email = account.get("email")
-        self.client = Login(account=account).multilogin()
-        if self.client is not False:
-            sub_client = Community(self.client).sub_client(self.com_id)
-            coins = int(self.client.get_wallet_info().totalCoins)
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
+            coins = int(client.get_wallet_info().totalCoins)
             if coins != 0:
                 try:
                     sub_client.send_coins(coins=coins, blogId=self.object_id)
-                    print(f"[{email}][send_coins]: {coins}")
+                    print(Log().align(email, f"{coins} coins sent"))
                 except amino.exceptions.NotEnoughCoins:
-                    print(f"[{email}][NotEnoughCoins][coins {coins}]")
-                    return
+                    print(Log().align(email, "NotEnoughCoins"))
                 except amino.exceptions.InvalidRequest:
-                    print(f"[{email}][InvalidRequest][coins {coins}]")
-                    return
-                print(f"[{email}]: {coins} монет отправлено.")
+                    print(Log().align(email, "InvalidRequest"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
             else:
-                print(f"[{email}][NotEnoughCoins]")
+                print(Log().align(email, "NotEnoughCoins"))
 
     def play_quiz(self):
         questions_list = []
@@ -313,7 +367,8 @@ class ServiceApp:
                     answers_list.append(answer_id)
         for i in range(2):
             try:
-                sub_client.play_quiz(quizId=self.object_id, questionIdsList=questions_list, answerIdsList=answers_list, quizMode=i)
+                sub_client.play_quiz(quizId=self.object_id, questionIdsList=questions_list, answerIdsList=answers_list,
+                                     quizMode=i)
             except amino.exceptions.InvalidRequest:
                 pass
         print(f"[quiz]: Passed the quiz!")
@@ -321,13 +376,21 @@ class ServiceApp:
 
     def like_blog(self, account: dict):
         email = account.get("email")
-        self.client = Login(account=account).multilogin()
-        if self.client is not False:
-            sub_client = Community(self.client).sub_client(self.com_id)
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
             try:
-                print(f"[{email}][like]: {Log(str(sub_client.like_blog(blogId=self.object_id))).replace_code()}")
+                sub_client.like_blog(blogId=self.object_id)
+                print(Log().align(email, "Like"))
             except amino.exceptions.RequestedNoLongerExists:
-                print(f"[{email}][like]: {Log(str(sub_client.like_blog(wikiId=self.object_id))).replace_code()}")
+                sub_client.like_blog(wikiId=self.object_id)
+                print(Log().align(email, "Like"))
+            except amino.exceptions.YouAreBanned:
+                print(Log().align(email, "You are banned"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+            except Exception as e:
+                print(Log().align(email, str(e)))
 
     def unfollow(self):
         sub_client = Community(self.client).sub_client(self.com_id)
@@ -369,13 +432,69 @@ class ServiceApp:
 
     def join_bots_to_chat(self, account: dict):
         email = account.get("email")
-        self.client = Login(account=account).multilogin()
-        if self.client is not False:
-            sub_client = Community(self.client).sub_client(self.com_id)
-            print(f"[{email}][Join to chat]: {Log(str(sub_client.join_chat(chatId=self.object_id))).replace_code()}")
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
+            try:
+                sub_client.join_chat(chatId=self.object_id)
+                print(Log().align(email, "Join"))
+            except amino.exceptions.YouAreBanned:
+                print(Log().align(email, "You are banned"))
+            except amino.exceptions.RemovedFromChat:
+                print(Log().align(email, "You are removed from this chatroom"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+            except Exception as e:
+                print(Log().align(email, str(e)))
 
     def join_bots_to_community(self, account: dict):
         email = account.get("email")
-        self.client = Login(account=account).multilogin()
-        if self.client is not False:
-            print(f"[{email}][Join to community]: {Log(str(self.client.join_community(comId=self.object_id))).replace_code()}")
+        client = Login().multilogin(account)
+        if client is not False:
+            try:
+                client.join_community(comId=self.object_id)
+                print(Log().align(email, "Join"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+            except Exception as e:
+                print(Log().align(email, str(e)))
+
+    def send_message(self, account: dict):
+        email = account.get("email")
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
+            try:
+                sub_client.send_message(chatId=self.object_id, message=self.text)
+                print(Log().align(email, "Send"))
+            except amino.exceptions.YouAreBanned:
+                print(Log().align(email, "You are banned"))
+            except amino.exceptions.RemovedFromChat:
+                print(Log().align(email, "You are removed from this chatroom"))
+            except amino.exceptions.ChatViewOnly:
+                print(Log().align(email, "Chat in view only mode"))
+            except amino.exceptions.AccessDenied:
+                print(Log().align(email, "Access denied"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+            except Exception as e:
+                print(Log().align(email, str(e)))
+
+    def follow(self, account: dict):
+        email = account.get("email")
+        client = Login().multilogin(account)
+        if client is not False:
+            sub_client = Community(client).sub_client(self.com_id)
+            try:
+                sub_client.follow(userId=self.object_id)
+                print(Log().align(email, "Follow"))
+            except amino.exceptions.YouAreBanned:
+                print(Log().align(email, "You are banned"))
+            except amino.exceptions.AccessDenied:
+                print(Log().align(email, "Access denied"))
+            except amino.exceptions.BlockedByUser:
+                print(Log().align(email, "You are blocked by this user"))
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "SID update required..."))
+            except Exception as e:
+                print(Log().align(email, str(e)))

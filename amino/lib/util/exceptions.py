@@ -340,6 +340,15 @@ class InsufficientLevel(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class BlockedByUser(Exception):
+    """
+    - **API Code** : 600
+    - **API Message** : Access Denied! You are blocked by this user.
+    - **API String** : ``Unknown String``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class WallCommentingDisabled(Exception):
     """
     - **API Code** : 702
@@ -761,6 +770,7 @@ def CheckException(data):
     elif api_code == 400 or api_code == 500 or api_code == 700 or api_code == 1600: raise RequestedNoLongerExists(data)
     elif api_code == 503: raise PageRepostedTooRecently(data)
     elif api_code == 551: raise InsufficientLevel(data)
+    elif api_code == 600: raise BlockedByUser(data)
     elif api_code == 702: raise WallCommentingDisabled(data)
     elif api_code == 801: raise CommunityNoLongerExists(data)
     elif api_code == 802: raise InvalidCodeOrLink(data)
