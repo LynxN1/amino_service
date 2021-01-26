@@ -2,6 +2,7 @@
 ||      Menu      ||
 ====================
 ||- b. Back
+||- s. Update SIDs
 ||- 0. Add accounts from bots.txt to bots.json
 ||- 1. PlayLottery
 ||- 2. SendCoins
