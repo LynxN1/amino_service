@@ -83,7 +83,12 @@ class Client:
         **Parameters**
             - **SID** : SID of the account
         """
-        event = self.get_eventlog()
+        while True:
+            try:
+                event = self.get_eventlog()
+                break
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
         self.authenticated = True
         self.sid = SID
         self.userId = event["auid"]

@@ -6,15 +6,16 @@ import random
 import threading
 import time
 import traceback
-from sys import platform
-from multiprocessing import Pool, cpu_count
-from multiprocessing.pool import ThreadPool
+from multiprocessing import Pool
 from termcolor import colored
 
 
 def get_accounts():
     with open(os.getcwd() + "/src/accounts/bots.yaml", "r") as accounts_file:
         return yaml.load(accounts_file.read(), Loader=yaml.Loader)
+
+
+pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
 
 
 def get_comments():
@@ -51,7 +52,6 @@ def get_count(values: list):
 
 class Login:
     def __init__(self):
-        self.accounts = get_accounts()
         self.client = amino.Client()
 
     def login(self, email: str):
@@ -78,64 +78,7 @@ class Login:
             except amino.exceptions.VerificationRequired as verify:
                 print(f"[Confirm your account]: {verify}")
 
-    def check_accounts(self):
-        print("Checking accounts...")
-        bad_accounts = []
-        for i in self.accounts:
-            if i.get("sid") is None:
-                bad_accounts.append(self.accounts.index(i))
-        if len(bad_accounts) > 0:
-            print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
-            pool = ThreadPool(10)
-            pool.map(self.set_sid, bad_accounts)
-            with open("src/accounts/bots.yaml", "w") as accounts_file:
-                yaml.dump(self.accounts, accounts_file, Dumper=yaml.Dumper)
-            bad_accounts.clear()
-
-    def update_sid(self):
-        print("Starting update...")
-        pool = ThreadPool(10)
-        indexes = []
-        for i in range(len(self.accounts)):
-            indexes.append(i)
-        pool.map(self.set_sid, indexes)
-        with open("src/accounts/bots.yaml", "w") as accounts_file:
-            yaml.dump(self.accounts, accounts_file, Dumper=yaml.Dumper)
-
-    def set_sid(self, index: int):
-        client = amino.Client()
-        email = self.accounts[index].get("email")
-        password = self.accounts[index].get("password")
-        client.device_id = random.choice(get_devices()).replace("\n", "")
-        while True:
-            try:
-                client.login(email, password)
-                print(Log().align(email, "SID updated"))
-                self.accounts[index]["sid"] = client.sid
-                break
-            except amino.exceptions.ActionNotAllowed:
-                print(Log().align(email, "device_id updated"))
-                client.device_id = random.choice(get_devices()).replace("\n", "")
-            except amino.exceptions.FailedLogin:
-                print(Log().align(email, "Failed login"))
-                return
-            except amino.exceptions.InvalidAccountOrPassword:
-                print(Log().align(email, "Invalid account or password"))
-                return
-            except amino.exceptions.InvalidPassword:
-                print(Log().align(email, "Invalid Password"))
-                return
-            except amino.exceptions.InvalidEmail:
-                print(Log().align(email, "Invalid Email"))
-                return
-            except amino.exceptions.AccountDoesntExist:
-                print(Log().align(email, "Account does not exist"))
-                return
-            except amino.exceptions.VerificationRequired as verify:
-                print(Log().align(email, str(verify)))
-                return
-
-    def multilogin(self, account: dict):
+    def multilogin_sid(self, account: dict):
         email = account.get("email")
         sid = account.get("sid")
         while True:
@@ -165,6 +108,87 @@ class Login:
             except amino.exceptions.InvalidSession:
                 print(Log().align(email, "SID update required..."))
                 return False
+
+    def multilogin(self, account: dict):
+        email = account.get("email")
+        password = account.get("password")
+        while True:
+            try:
+                self.client.login(email, password)
+                return self.client
+            except amino.exceptions.ActionNotAllowed:
+                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+            except amino.exceptions.FailedLogin:
+                print(Log().align(email, "Failed login"))
+                return False
+            except amino.exceptions.InvalidAccountOrPassword:
+                print(Log().align(email, "Invalid account or password"))
+                return False
+            except amino.exceptions.InvalidPassword:
+                print(Log().align(email, "Invalid Password"))
+                return False
+            except amino.exceptions.InvalidEmail:
+                print(Log().align(email, "Invalid Email"))
+                return False
+            except amino.exceptions.AccountDoesntExist:
+                print(Log().align(email, "Account does not exist"))
+                return False
+            except amino.exceptions.VerificationRequired as verify:
+                print(Log().align(email, str(verify)))
+                return False
+            except amino.exceptions.InvalidSession:
+                print(Log().align(email, "InvalidSession"))
+                return False
+
+    def check_sid(self):
+        print("Checking accounts...")
+        bad_accounts = []
+        for i in get_accounts():
+            if i.get("sid") is None:
+                bad_accounts.append(i)
+        if len(bad_accounts) > 0:
+            print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
+            pool = Pool(pool_count)
+            sid_pool = pool.map(self.get_sid, bad_accounts)
+            with open("src/accounts/bots.yaml", "w") as accounts_file:
+                yaml.dump(sid_pool, accounts_file, Dumper=yaml.Dumper)
+
+    def update_sid(self):
+        print("Starting update...")
+        pool = Pool(pool_count)
+        sid_pool = pool.map(self.get_sid, get_accounts())
+        with open("src/accounts/bots.yaml", "w") as accounts_file:
+            yaml.dump(sid_pool, accounts_file, Dumper=yaml.Dumper)
+
+    def get_sid(self, account: dict):
+        email = account.get("email")
+        password = account.get("password")
+        while True:
+            try:
+                self.client.login(email, password)
+                print(Log().align(email, "SID updated"))
+                return {"email": email, "password": password, "sid": self.client.sid}
+            except amino.exceptions.ActionNotAllowed:
+                print(Log().align(email, "device_id updated"))
+                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+            except amino.exceptions.FailedLogin:
+                print(Log().align(email, "Failed login"))
+                return
+            except amino.exceptions.InvalidAccountOrPassword:
+                print(Log().align(email, "Invalid account or password"))
+                return
+            except amino.exceptions.InvalidPassword:
+                print(Log().align(email, "Invalid Password"))
+                return
+            except amino.exceptions.InvalidEmail:
+                print(Log().align(email, "Invalid Email"))
+                return
+            except amino.exceptions.AccountDoesntExist:
+                print(Log().align(email, "Account does not exist"))
+                return
+            except amino.exceptions.VerificationRequired as verify:
+                print(Log().align(email, str(verify)))
+                return
 
     def get_password(self, email: str):
         with open("src/auth/data.json", "r") as f:
@@ -239,10 +263,6 @@ class Log:
 
 class ServiceApp:
     def __init__(self):
-        if platform in ["linux", "linux2", "linux3"]:
-            self.pool_count = cpu_count()
-        else:
-            self.pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
         with open(os.getcwd() + "/src/auth/data.json", "r") as auth_file:
             auth_data = json.loads(auth_file.read())
             if auth_data:
@@ -286,7 +306,7 @@ class ServiceApp:
                         elif choice == "b":
                             back = True
                 elif management_choice == "2":
-                    Login().check_accounts()
+                    Login().check_sid()
                     back = False
                     while not back:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
@@ -296,43 +316,43 @@ class ServiceApp:
                             input("Changes saved. Please restart the program...")
                             exit(0)
                         elif choice == "1":
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             result = pool.map(self.play_lottery, get_accounts())
                             print(f"Result: +{get_count(result)} coins")
                             print("[PlayLottery]: Finish.")
                         elif choice == "2":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             result = pool.map(self.send_coins, get_accounts())
                             print(f"Result: +{get_count(result)} coins")
                             print("[SendCoins]: Finish.")
                         elif choice == "3":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             pool.map(self.like_blog, get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
                             self.object_id = Threads(self.client, self.com_id).select()
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             pool.map(self.join_bots_to_chat, get_accounts())
                             print("[JoinBotsToChat]: Finish.")
                         elif choice == "5":
                             self.object_id = Community(self.client).select()
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             pool.map(self.join_bots_to_community, get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
                         elif choice == "6":
                             self.object_id = Threads(self.client, self.com_id).select()
                             self.text = input("Message text: ")
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             pool.map(self.send_message, get_accounts())
                             print("[SendMessage]: Finish.")
                         elif choice == "7":
                             user_link = input("Link to user: ")
                             self.object_id = self.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool = Pool()
+                            pool = Pool(pool_count)
                             pool.map(self.follow, get_accounts())
                             print("[Follow]: Finish.")
                         elif choice == "s":
@@ -345,7 +365,7 @@ class ServiceApp:
 
     def play_lottery(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
             try:
@@ -363,7 +383,7 @@ class ServiceApp:
 
     def send_coins(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
             coins = int(client.get_wallet_info().totalCoins)
@@ -417,7 +437,7 @@ class ServiceApp:
 
     def like_blog(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
             try:
@@ -476,6 +496,7 @@ class ServiceApp:
         client = Login().multilogin(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
+            print(sub_client.userId)
             try:
                 sub_client.join_chat(chatId=self.object_id)
                 print(Log().align(email, "Join"))
@@ -490,7 +511,7 @@ class ServiceApp:
 
     def join_bots_to_community(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             try:
                 client.join_community(comId=self.object_id)
@@ -502,7 +523,7 @@ class ServiceApp:
 
     def send_message(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
             try:
@@ -523,7 +544,7 @@ class ServiceApp:
 
     def follow(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().multilogin_sid(account)
         if client is not False:
             sub_client = Community(client).sub_client(self.com_id)
             try:
