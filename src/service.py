@@ -1,18 +1,20 @@
 import os
 import amino
 import json
+import yaml
 import random
 import threading
 import time
 import traceback
-from multiprocessing import Pool
+from sys import platform
+from multiprocessing import Pool, cpu_count
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 
 
 def get_accounts():
-    with open(os.getcwd() + "/src/accounts/bots.json", "r") as accounts_file:
-        return json.loads(accounts_file.read())
+    with open(os.getcwd() + "/src/accounts/bots.yaml", "r") as accounts_file:
+        return yaml.load(accounts_file.read(), Loader=yaml.Loader)
 
 
 def get_comments():
@@ -34,8 +36,8 @@ def set_bots():
         email = split[0].replace("\n", "")
         password = split[1].replace("\n", "")
         accounts.append({"email": email, "password": password})
-    with open(os.getcwd() + "/src/accounts/bots.json", "w") as accounts_file:
-        json.dump(accounts, accounts_file, indent=2)
+    with open(os.getcwd() + "/src/accounts/bots.yaml", "w") as accounts_file:
+        yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
     print("Ready!")
 
 
@@ -86,8 +88,8 @@ class Login:
             print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
             pool = ThreadPool(10)
             pool.map(self.set_sid, bad_accounts)
-            with open("src/accounts/bots.json", "w") as accounts_file:
-                json.dump(self.accounts, accounts_file, indent=2)
+            with open("src/accounts/bots.yaml", "w") as accounts_file:
+                yaml.dump(self.accounts, accounts_file, Dumper=yaml.Dumper)
             bad_accounts.clear()
 
     def update_sid(self):
@@ -97,6 +99,8 @@ class Login:
         for i in range(len(self.accounts)):
             indexes.append(i)
         pool.map(self.set_sid, indexes)
+        with open("src/accounts/bots.yaml", "w") as accounts_file:
+            yaml.dump(self.accounts, accounts_file, Dumper=yaml.Dumper)
 
     def set_sid(self, index: int):
         client = amino.Client()
@@ -235,7 +239,10 @@ class Log:
 
 class ServiceApp:
     def __init__(self):
-        self.pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
+        if platform in ["linux", "linux2", "linux3"]:
+            self.pool_count = cpu_count()
+        else:
+            self.pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
         with open(os.getcwd() + "/src/auth/data.json", "r") as auth_file:
             auth_data = json.loads(auth_file.read())
             if auth_data:
@@ -289,43 +296,43 @@ class ServiceApp:
                             input("Changes saved. Please restart the program...")
                             exit(0)
                         elif choice == "1":
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             result = pool.map(self.play_lottery, get_accounts())
                             print(f"Result: +{get_count(result)} coins")
                             print("[PlayLottery]: Finish.")
                         elif choice == "2":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             result = pool.map(self.send_coins, get_accounts())
                             print(f"Result: +{get_count(result)} coins")
                             print("[SendCoins]: Finish.")
                         elif choice == "3":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             pool.map(self.like_blog, get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
                             self.object_id = Threads(self.client, self.com_id).select()
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             pool.map(self.join_bots_to_chat, get_accounts())
                             print("[JoinBotsToChat]: Finish.")
                         elif choice == "5":
                             self.object_id = Community(self.client).select()
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             pool.map(self.join_bots_to_community, get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
                         elif choice == "6":
                             self.object_id = Threads(self.client, self.com_id).select()
                             self.text = input("Message text: ")
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             pool.map(self.send_message, get_accounts())
                             print("[SendMessage]: Finish.")
                         elif choice == "7":
                             user_link = input("Link to user: ")
                             self.object_id = self.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool = Pool(self.pool_count)
+                            pool = Pool()
                             pool.map(self.follow, get_accounts())
                             print("[Follow]: Finish.")
                         elif choice == "s":
