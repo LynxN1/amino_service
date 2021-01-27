@@ -1,1 +1,1 @@
-C:\Users\Lynx1\Desktop\amino_service_test\venv\Scripts\python main.py
+python main.py
