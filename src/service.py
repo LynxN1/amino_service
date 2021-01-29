@@ -108,6 +108,9 @@ class Login:
             except amino.exceptions.InvalidSession:
                 print(Log().align(email, "SID update required..."))
                 return False
+            except Exception as e:
+                print(Log().align(email, str(e)))
+                return False
 
     def multilogin(self, account: dict):
         email = account.get("email")
@@ -139,19 +142,27 @@ class Login:
             except amino.exceptions.InvalidSession:
                 print(Log().align(email, "InvalidSession"))
                 return False
+            except Exception as e:
+                print(Log().align(email, str(e)))
+                return False
 
     def check_sid(self):
         print("Checking accounts...")
+        accounts = get_accounts()
         bad_accounts = []
-        for i in get_accounts():
+        for i in accounts:
             if i.get("sid") is None:
                 bad_accounts.append(i)
-        if len(bad_accounts) > 0:
+        for i in bad_accounts:
+            accounts.remove(i)
+        if bad_accounts:
             print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
             pool = Pool(pool_count)
             sid_pool = pool.map(self.get_sid, bad_accounts)
+            for i in sid_pool:
+                accounts.append(i)
             with open("src/accounts/bots.yaml", "w") as accounts_file:
-                yaml.dump(sid_pool, accounts_file, Dumper=yaml.Dumper)
+                yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
 
     def update_sid(self):
         print("Starting update...")
@@ -167,7 +178,7 @@ class Login:
             try:
                 self.client.login(email, password)
                 print(Log().align(email, "SID updated"))
-                return {"email": email, "password": password, "sid": self.client.sid}
+                return {"email": email, "password": password, "uid": self.client.userId, "sid": self.client.sid}
             except amino.exceptions.ActionNotAllowed:
                 print(Log().align(email, "device_id updated"))
                 self.client.device_id = random.choice(get_devices()).replace("\n", "")
@@ -188,6 +199,9 @@ class Login:
                 return
             except amino.exceptions.VerificationRequired as verify:
                 print(Log().align(email, str(verify)))
+                return
+            except Exception as e:
+                print(Log().align(email, str(e)))
                 return
 
     def get_password(self, email: str):
@@ -225,8 +239,15 @@ class Community:
                 print(colored("Invalid community number", "red"))
 
     def sub_client(self, com_id: str):
-        sub_client = amino.SubClient(comId=com_id, profile=self.client.profile)
-        return sub_client
+        try:
+            sub_client = amino.SubClient(comId=com_id, profile=self.client.profile)
+            return sub_client
+        except amino.exceptions.UserNotMemberOfCommunity:
+            return False
+        except amino.exceptions.UserUnavailable:
+            return False
+        except Exception:
+            return False
 
 
 class Threads:
@@ -296,13 +317,16 @@ class ServiceApp:
                             self.unfollow()
                             print("[Unfollow]: Finish.")
                         elif choice == "3":
-                            like_blogs = threading.Thread(target=self.like_recent_blogs)
+                            like_blogs = threading.Thread(target=self.activity)
                             like_blogs.start()
                             input("\nPress ENTER to stop...\n")
                             self.back = True
                             like_blogs.join()
                             self.back = False
                             print("[Activity]: Finish.")
+                        elif choice == "4":
+                            self.follow_all()
+                            print("[FollowAll]: Finish.")
                         elif choice == "b":
                             back = True
                 elif management_choice == "2":
@@ -366,36 +390,15 @@ class ServiceApp:
     def play_lottery(self, account: dict):
         email = account.get("email")
         client = Login().multilogin_sid(account)
-        if client is not False:
+        if client:
             sub_client = Community(client).sub_client(self.com_id)
-            try:
-                play = sub_client.lottery()
-                award = play.awardValue if play.awardValue else 0
-                return int(award)
-            except amino.exceptions.AlreadyPlayedLottery:
-                print(Log().align(email, "AlreadyPlayedLottery"))
-            except amino.exceptions.YouAreBanned:
-                print(Log().align(email, "You are banned"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
-
-    def send_coins(self, account: dict):
-        email = account.get("email")
-        client = Login().multilogin_sid(account)
-        if client is not False:
-            sub_client = Community(client).sub_client(self.com_id)
-            coins = int(client.get_wallet_info().totalCoins)
-            if coins != 0:
+            if sub_client:
                 try:
-                    sub_client.send_coins(coins=coins, blogId=self.object_id)
-                    print(Log().align(email, f"{coins} coins sent"))
-                    return coins
-                except amino.exceptions.NotEnoughCoins:
-                    print(Log().align(email, "NotEnoughCoins"))
-                except amino.exceptions.InvalidRequest:
-                    print(Log().align(email, "InvalidRequest"))
+                    play = sub_client.lottery()
+                    award = play.awardValue if play.awardValue else 0
+                    return int(award)
+                except amino.exceptions.AlreadyPlayedLottery:
+                    print(Log().align(email, "AlreadyPlayedLottery"))
                 except amino.exceptions.YouAreBanned:
                     print(Log().align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
@@ -403,7 +406,34 @@ class ServiceApp:
                 except Exception as e:
                     print(Log().align(email, str(e)))
             else:
-                print(Log().align(email, "NotEnoughCoins"))
+                print(Log().align(email, "Community error"))
+
+    def send_coins(self, account: dict):
+        email = account.get("email")
+        client = Login().multilogin_sid(account)
+        if client:
+            sub_client = Community(client).sub_client(self.com_id)
+            if sub_client:
+                coins = int(client.get_wallet_info().totalCoins)
+                if coins != 0:
+                    try:
+                        sub_client.send_coins(coins=coins, blogId=self.object_id)
+                        print(Log().align(email, f"{coins} coins sent"))
+                        return coins
+                    except amino.exceptions.NotEnoughCoins:
+                        print(Log().align(email, "NotEnoughCoins"))
+                    except amino.exceptions.InvalidRequest:
+                        print(Log().align(email, "InvalidRequest"))
+                    except amino.exceptions.YouAreBanned:
+                        print(Log().align(email, "You are banned"))
+                    except amino.exceptions.InvalidSession:
+                        print(Log().align(email, "SID update required..."))
+                    except Exception as e:
+                        print(Log().align(email, str(e)))
+                else:
+                    print(Log().align(email, "NotEnoughCoins"))
+            else:
+                print(Log().align(email, "Community error"))
 
     def play_quiz(self):
         questions_list = []
@@ -438,20 +468,23 @@ class ServiceApp:
     def like_blog(self, account: dict):
         email = account.get("email")
         client = Login().multilogin_sid(account)
-        if client is not False:
+        if client:
             sub_client = Community(client).sub_client(self.com_id)
-            try:
-                sub_client.like_blog(blogId=self.object_id)
-                print(Log().align(email, "Like"))
-            except amino.exceptions.RequestedNoLongerExists:
-                sub_client.like_blog(wikiId=self.object_id)
-                print(Log().align(email, "Like"))
-            except amino.exceptions.YouAreBanned:
-                print(Log().align(email, "You are banned"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
+            if sub_client:
+                try:
+                    sub_client.like_blog(blogId=self.object_id)
+                    print(Log().align(email, "Like"))
+                except amino.exceptions.RequestedNoLongerExists:
+                    sub_client.like_blog(wikiId=self.object_id)
+                    print(Log().align(email, "Like"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
 
     def unfollow(self):
         sub_client = Community(self.client).sub_client(self.com_id)
@@ -460,7 +493,7 @@ class ServiceApp:
         while not back:
             for i in range(0, 2000, 100):
                 followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
-                if len(followings.userId) == 0:
+                if not followings.userId:
                     back = True
                 else:
                     for user_id in followings.userId:
@@ -468,51 +501,69 @@ class ServiceApp:
                         print(f"[{iteration}]: Unfollow")
                         sub_client.unfollow(userId=user_id)
 
-    def like_recent_blogs(self):
+    def follow_all(self):
+        print("Subscribe...")
+        sub_client = Community(self.client).sub_client(self.com_id)
+        for i in range(0, 20000, 100):
+            users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
+            if len(users) > 0:
+                sub_client.follow(userId=users)
+            else:
+                break
+        for i in range(0, 10000, 100):
+            users = sub_client.get_online_users(start=i, size=100).profile.userId
+            if len(users) > 0:
+                sub_client.follow(userId=users)
+            else:
+                break
+
+    def activity(self):
+        print("Activity...")
         comments = get_comments()
         subclient = amino.SubClient(comId=self.com_id, profile=self.client.profile)
         old_blogs = []
         while not self.back:
-            print("Get recent blogs")
             recent_blogs = subclient.get_recent_blogs(start=0, size=100)
             for blog_id, blog_type in zip(recent_blogs.blog.blogId, recent_blogs.blog.type):
                 if blog_id not in old_blogs:
                     try:
                         subclient.like_blog(blogId=blog_id)
-                        if len(comments) > 0:
+                        if comments:
                             subclient.comment(message=random.choice(comments), blogId=blog_id)
-                        time.sleep(2.5)
+                            time.sleep(2.5)
                     except amino.exceptions.RequestedNoLongerExists:
                         subclient.like_blog(wikiId=blog_id)
-                        if len(comments) > 0:
+                        if comments:
                             subclient.comment(message=random.choice(comments), wikiId=blog_id)
-                        time.sleep(2.5)
-                    print("Like")
+                            time.sleep(2.5)
                     old_blogs.append(blog_id)
             time.sleep(5)
 
     def join_bots_to_chat(self, account: dict):
         email = account.get("email")
         client = Login().multilogin(account)
-        if client is not False:
+        if client:
             sub_client = Community(client).sub_client(self.com_id)
-            print(sub_client.userId)
-            try:
-                sub_client.join_chat(chatId=self.object_id)
-                print(Log().align(email, "Join"))
-            except amino.exceptions.YouAreBanned:
-                print(Log().align(email, "You are banned"))
-            except amino.exceptions.RemovedFromChat:
-                print(Log().align(email, "You are removed from this chatroom"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
+            if sub_client:
+                print(sub_client.userId)
+                try:
+                    sub_client.join_chat(chatId=self.object_id)
+                    print(Log().align(email, "Join"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.RemovedFromChat:
+                    print(Log().align(email, "You are removed from this chatroom"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
 
     def join_bots_to_community(self, account: dict):
         email = account.get("email")
         client = Login().multilogin_sid(account)
-        if client is not False:
+        if client:
             try:
                 client.join_community(comId=self.object_id)
                 print(Log().align(email, "Join"))
@@ -524,39 +575,45 @@ class ServiceApp:
     def send_message(self, account: dict):
         email = account.get("email")
         client = Login().multilogin_sid(account)
-        if client is not False:
+        if client:
             sub_client = Community(client).sub_client(self.com_id)
-            try:
-                sub_client.send_message(chatId=self.object_id, message=self.text)
-                print(Log().align(email, "Send"))
-            except amino.exceptions.YouAreBanned:
-                print(Log().align(email, "You are banned"))
-            except amino.exceptions.RemovedFromChat:
-                print(Log().align(email, "You are removed from this chatroom"))
-            except amino.exceptions.ChatViewOnly:
-                print(Log().align(email, "Chat in view only mode"))
-            except amino.exceptions.AccessDenied:
-                print(Log().align(email, "Access denied"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
+            if sub_client:
+                try:
+                    sub_client.send_message(chatId=self.object_id, message=self.text)
+                    print(Log().align(email, "Send"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.RemovedFromChat:
+                    print(Log().align(email, "You are removed from this chatroom"))
+                except amino.exceptions.ChatViewOnly:
+                    print(Log().align(email, "Chat in view only mode"))
+                except amino.exceptions.AccessDenied:
+                    print(Log().align(email, "Access denied"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
 
     def follow(self, account: dict):
         email = account.get("email")
         client = Login().multilogin_sid(account)
-        if client is not False:
+        if client:
             sub_client = Community(client).sub_client(self.com_id)
-            try:
-                sub_client.follow(userId=self.object_id)
-                print(Log().align(email, "Follow"))
-            except amino.exceptions.YouAreBanned:
-                print(Log().align(email, "You are banned"))
-            except amino.exceptions.AccessDenied:
-                print(Log().align(email, "Access denied"))
-            except amino.exceptions.BlockedByUser:
-                print(Log().align(email, "You are blocked by this user"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
+            if sub_client:
+                try:
+                    sub_client.follow(userId=self.object_id)
+                    print(Log().align(email, "Follow"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.AccessDenied:
+                    print(Log().align(email, "Access denied"))
+                except amino.exceptions.BlockedByUser:
+                    print(Log().align(email, "You are blocked by this user"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))

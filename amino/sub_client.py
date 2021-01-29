@@ -185,7 +185,7 @@ class SubClient(client.Client):
                                          verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -325,7 +325,7 @@ class SubClient(client.Client):
                                                  verify=self.certificatePath)
                         break
                     except requests.exceptions.ConnectionError:
-                        print("ConnectionError")
+                        pass
 
             elif isinstance(blogId, list):
                 data["targetIdList"] = blogId
@@ -338,7 +338,7 @@ class SubClient(client.Client):
                                                  verify=self.certificatePath)
                         break
                     except requests.exceptions.ConnectionError:
-                        print("ConnectionError")
+                        pass
 
             else:
                 raise exceptions.WrongType
@@ -354,7 +354,7 @@ class SubClient(client.Client):
                                              verify=self.certificatePath)
                     break
                 except requests.exceptions.ConnectionError:
-                    print("ConnectionError")
+                    pass
 
         else:
             raise exceptions.SpecifyType()
@@ -663,7 +663,7 @@ class SubClient(client.Client):
                                          verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -924,9 +924,14 @@ class SubClient(client.Client):
             data["mediaUploadValue"] = base64.b64encode(file.read()).decode()
 
         data = json.dumps(data)
-        response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message",
-                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                 verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message",
+                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
+                                         verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1220,8 +1225,13 @@ class SubClient(client.Client):
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/member/{self.profile.userId}",
-                                 headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/member/{self.profile.userId}",
+                                         headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1313,7 +1323,7 @@ class SubClient(client.Client):
                                          verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1418,7 +1428,7 @@ class SubClient(client.Client):
                                         proxies=self.proxies, verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:

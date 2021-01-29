@@ -64,7 +64,7 @@ class Client:
                 response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
@@ -88,7 +88,7 @@ class Client:
                 event = self.get_eventlog()
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         self.authenticated = True
         self.sid = SID
         self.userId = event["auid"]
@@ -367,7 +367,7 @@ class Client:
                 response = requests.post(f"{self.api}/g/s/device", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: self.configured = True; return response.status_code
 
@@ -423,7 +423,7 @@ class Client:
                 response = requests.get(f"{self.api}/g/s/user-profile/{userId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
-                print("ConnectionError")
+                pass
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfile(json.loads(response.text)["userProfile"]).UserProfile
 
@@ -1649,7 +1649,12 @@ class Client:
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        response = requests.get(f"{self.api}/g/s/wallet", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        while True:
+            try:
+                response = requests.get(f"{self.api}/g/s/wallet", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+                break
+            except requests.exceptions.ConnectionError:
+                pass
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.WalletInfo(json.loads(response.text)["wallet"]).WalletInfo
 
