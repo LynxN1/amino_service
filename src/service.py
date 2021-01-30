@@ -414,24 +414,24 @@ class ServiceApp:
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
-                coins = int(client.get_wallet_info().totalCoins)
-                if coins != 0:
-                    try:
+                try:
+                    coins = int(client.get_wallet_info().totalCoins)
+                    if coins != 0:
                         sub_client.send_coins(coins=coins, blogId=self.object_id)
                         print(Log().align(email, f"{coins} coins sent"))
                         return coins
-                    except amino.exceptions.NotEnoughCoins:
+                    else:
                         print(Log().align(email, "NotEnoughCoins"))
-                    except amino.exceptions.InvalidRequest:
-                        print(Log().align(email, "InvalidRequest"))
-                    except amino.exceptions.YouAreBanned:
-                        print(Log().align(email, "You are banned"))
-                    except amino.exceptions.InvalidSession:
-                        print(Log().align(email, "SID update required..."))
-                    except Exception as e:
-                        print(Log().align(email, str(e)))
-                else:
+                except amino.exceptions.NotEnoughCoins:
                     print(Log().align(email, "NotEnoughCoins"))
+                except amino.exceptions.InvalidRequest:
+                    print(Log().align(email, "InvalidRequest"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
             else:
                 print(Log().align(email, "Community error"))
 
