@@ -56,12 +56,11 @@ class Client:
             "timestamp": int(timestamp() * 1000)
         })
 
-        header = headers.Headers(data=data).headers
-        header["NDCDEVICEID"] = self.device_id
+        headers.Headers(data=data).headers["NDCDEVICEID"] = self.device_id
 
         while True:
             try:
-                response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
+                response = requests.post(f"{self.api}/g/s/auth/login", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
                 break
             except requests.exceptions.ConnectionError:
                 pass
