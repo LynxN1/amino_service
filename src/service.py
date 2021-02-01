@@ -1,4 +1,6 @@
 import os
+from string import ascii_letters
+
 import amino
 import json
 import yaml
@@ -26,6 +28,11 @@ def get_comments():
 def get_devices():
     with open(os.getcwd() + "/src/devices/devices.txt", "r") as devices_file:
         return devices_file.readlines()
+
+
+def get_reg_devices():
+    with open(os.getcwd() + "/src/devices/reg_devices.txt", "r") as reg_devices_file:
+        return reg_devices_file.readlines()
 
 
 def set_bots():
@@ -222,6 +229,101 @@ class Login:
             json.dump(auth_data, f, indent=2)
 
 
+class Register:
+    def __init__(self):
+        self.client = amino.Client()
+        self.email = None
+        self.password = input("Set a password for all accounts: ")
+        while len(self.password) < 6:
+            print(colored("Password must be at least 6 characters long", "red"))
+            self.password = input("Set a password for all accounts: ")
+        self.current_device = None
+        self.code = None
+
+    def run(self):
+        if get_reg_devices():
+            for device in get_reg_devices():
+                self.current_device = device.replace("\n", "")
+                for _ in range(3):
+                    self.email = input("Email: ")
+                    if self.register():
+                        self.client.request_verify_code(deviceId=self.current_device, email=self.email)
+                        if self.verify():
+                            if self.login():
+                                self.save_account()
+                            else:
+                                continue
+                        else:
+                            continue
+                    else:
+                        continue
+        else:
+            print(colored("reg_devices.txt is empty", "red"))
+
+    def register(self):
+        while True:
+            try:
+                nick = ''.join(random.choice(ascii_letters) for _ in range(random.randint(2, 5)))
+                self.client.register(nickname=nick, email=self.email, password=str(self.password), deviceId=self.current_device)
+                return True
+            except amino.exceptions.AccountLimitReached:
+                print(colored("AccountLimitReached", "red"))
+                return False
+            except amino.exceptions.InvalidEmail:
+                print(colored("Invalid Email", "red"))
+                return False
+            except amino.exceptions.EmailAlreadyTaken:
+                print(colored("EmailAlreadyTaken", "red"))
+                self.email = input("Email: ")
+            except amino.exceptions.UnsupportedEmail:
+                print(colored("UnsupportedEmail", "red"))
+                return False
+            except amino.exceptions.CommandCooldown:
+                print(colored("CommandCooldown", "red"))
+                return False
+            except amino.exceptions.VerificationRequired as e:
+                input(str(e) + "\n\npress ENTER to continue...")
+            except Exception as e:
+                print(colored(str(e), "red"))
+                return False
+
+    def verify(self):
+        while True:
+            self.code = input("Code: ")
+            try:
+                self.client.verify(deviceId=self.current_device, email=self.email, code=self.code)
+                return True
+            except amino.exceptions.IncorrectVerificationCode:
+                print(colored("IncorrectVerificationCode", "red"))
+            except Exception as e:
+                print(colored(str(e), "red"))
+                return False
+
+    def login(self):
+        while True:
+            try:
+                self.client.login(email=self.email, password=self.password)
+                return True
+            except amino.exceptions.ActionNotAllowed:
+                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+            except Exception as e:
+                print(colored(str(e), "red"))
+                return False
+
+    def activate(self):
+        while True:
+            try:
+                self.client.activate_account(email=self.email, code=self.code)
+                return True
+            except Exception as e:
+                print(colored(str(e), "red"))
+                return False
+
+    def save_account(self):
+        with open(os.getcwd() + "/src/accounts/bots.yaml", "a") as accounts_file:
+            yaml.dump([{"email": self.email, "password": self.password}], accounts_file, Dumper=yaml.Dumper)
+
+
 class Community:
     def __init__(self, client):
         self.client = client
@@ -327,6 +429,9 @@ class ServiceApp:
                         elif choice == "4":
                             self.follow_all()
                             print("[FollowAll]: Finish.")
+                        elif choice == "5":
+                            Register().run()
+                            print("[Register]: Finish.")
                         elif choice == "b":
                             back = True
                 elif management_choice == "2":
