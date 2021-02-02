@@ -51,10 +51,12 @@ def set_bots():
 
 def get_count(values: list):
     total_count = 0
+    total_accounts = 0
     for i in values:
         if type(i) == int:
+            total_accounts += 1
             total_count += i
-    return total_count
+    return {"count": total_count, "accounts": total_accounts}
 
 
 class Login:
@@ -447,14 +449,16 @@ class ServiceApp:
                         elif choice == "1":
                             pool = Pool(pool_count)
                             result = pool.map(self.play_lottery, get_accounts())
-                            print(f"Result: +{get_count(result)} coins")
+                            count_result = get_count(result)
+                            print(f"Accounts: {count_result['accounts']}\nResult: +{count_result['count']} coins")
                             print("[PlayLottery]: Finish.")
                         elif choice == "2":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
                             pool = Pool(pool_count)
                             result = pool.map(self.send_coins, get_accounts())
-                            print(f"Result: +{get_count(result)} coins")
+                            count_result = get_count(result)
+                            print(f"Accounts {count_result['accounts']}\nResult: +{count_result['count']} coins")
                             print("[SendCoins]: Finish.")
                         elif choice == "3":
                             blog_link = input("Blog link: ")
