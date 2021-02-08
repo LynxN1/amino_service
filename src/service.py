@@ -1,23 +1,20 @@
 import os
-from string import ascii_letters
-
 import amino
 import json
 import yaml
 import random
-import threading
 import time
 import traceback
+
 from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from termcolor import colored
+from string import ascii_letters
 
 
 def get_accounts():
     with open(os.getcwd() + "/src/accounts/bots.yaml", "r") as accounts_file:
         return yaml.load(accounts_file.read(), Loader=yaml.Loader)
-
-
-pool_count = len(get_accounts()) if len(get_accounts()) <= 10 else 10
 
 
 def get_comments():
@@ -35,6 +32,16 @@ def get_reg_devices():
         return reg_devices_file.readlines()
 
 
+def get_count(values: list):
+    total_count = 0
+    total_accounts = 0
+    for i in values:
+        if type(i) == int:
+            total_accounts += 1
+            total_count += i
+    return {"count": total_count, "accounts": total_accounts}
+
+
 def set_bots():
     accounts = []
     with open(os.getcwd() + "/src/accounts/bots.txt", "r") as bots_file:
@@ -44,19 +51,21 @@ def set_bots():
         email = split[0].replace("\n", "")
         password = split[1].replace("\n", "")
         accounts.append({"email": email, "password": password})
-    with open(os.getcwd() + "/src/accounts/bots.yaml", "w") as accounts_file:
+    with open(os.getcwd() + "/src/accounts/bots.yaml", "a") as accounts_file:
         yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
     print("Ready!")
 
 
-def get_count(values: list):
-    total_count = 0
-    total_accounts = 0
-    for i in values:
-        if type(i) == int:
-            total_accounts += 1
-            total_count += i
-    return {"count": total_count, "accounts": total_accounts}
+def set_pool_count():
+    if len(get_accounts()) >= 10:
+        while True:
+            processes = input("Set the number of threads(1-50): ")
+            if 50 >= int(processes) >= 1:
+                return int(processes)
+            else:
+                print(colored("The number of threads must be from 1 to 50", "red"))
+    else:
+        return len(get_accounts()) if len(get_accounts()) <= 10 else 10
 
 
 class Login:
@@ -159,23 +168,28 @@ class Login:
         print("Checking accounts...")
         accounts = get_accounts()
         bad_accounts = []
-        for i in accounts:
-            if i.get("sid") is None:
-                bad_accounts.append(i)
-        for i in bad_accounts:
-            accounts.remove(i)
-        if bad_accounts:
-            print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
-            pool = Pool(pool_count)
-            sid_pool = pool.map(self.get_sid, bad_accounts)
-            for i in sid_pool:
-                accounts.append(i)
-            with open("src/accounts/bots.yaml", "w") as accounts_file:
-                yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
+        if accounts:
+            for i in accounts:
+                if i.get("sid") is None:
+                    bad_accounts.append(i)
+            for i in bad_accounts:
+                accounts.remove(i)
+            if bad_accounts:
+                print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
+                pool = Pool(set_pool_count())
+                sid_pool = pool.map(self.get_sid, bad_accounts)
+                for i in sid_pool:
+                    if i:
+                        accounts.append(i)
+                if accounts:
+                    with open("src/accounts/bots.yaml", "w") as accounts_file:
+                        yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
+        else:
+            print(colored("bots.yaml is empty", "red"))
 
     def update_sid(self):
         print("Starting update...")
-        pool = Pool(pool_count)
+        pool = Pool(set_pool_count())
         sid_pool = pool.map(self.get_sid, get_accounts())
         with open("src/accounts/bots.yaml", "w") as accounts_file:
             yaml.dump(sid_pool, accounts_file, Dumper=yaml.Dumper)
@@ -213,7 +227,8 @@ class Login:
                 print(Log().align(email, str(e)))
                 return
 
-    def get_password(self, email: str):
+    @staticmethod
+    def get_password(email: str):
         with open("src/auth/data.json", "r") as f:
             auth_data = json.load(f)
         try:
@@ -223,7 +238,8 @@ class Login:
             password = input("Password: ")
             return password
 
-    def save_auth_data(self, email: str, password: str):
+    @staticmethod
+    def save_auth_data(email: str, password: str):
         with open("src/auth/data.json", "r") as f:
             auth_data = json.load(f)
         with open("src/auth/data.json", "w") as f:
@@ -266,7 +282,8 @@ class Register:
         while True:
             try:
                 nick = ''.join(random.choice(ascii_letters) for _ in range(random.randint(2, 5)))
-                self.client.register(nickname=nick, email=self.email, password=str(self.password), deviceId=self.current_device)
+                self.client.register(nickname=nick, email=self.email, password=str(self.password),
+                                     deviceId=self.current_device)
                 return True
             except amino.exceptions.AccountLimitReached:
                 print(colored("AccountLimitReached", "red"))
@@ -350,7 +367,8 @@ class Community:
             return False
         except amino.exceptions.UserUnavailable:
             return False
-        except Exception:
+        except Exception as e:
+            print(e)
             return False
 
 
@@ -377,7 +395,8 @@ class Threads:
 
 
 class Log:
-    def align(self, text: str, action: str):
+    @staticmethod
+    def align(text: str, action: str):
         spaces = 30 - len(text)
         text = f"[{text}"
         for _ in range(spaces):
@@ -398,6 +417,7 @@ class ServiceApp:
         self.com_id = Community(self.client).select()
         self.object_id = None
         self.text = None
+        self.invitation_id = None
         self.back = False
 
     def run(self):
@@ -418,14 +438,15 @@ class ServiceApp:
                             self.play_quiz()
                             print("[PlayQuiz]: Finish.")
                         elif choice == "2":
-                            self.unfollow()
-                            print("[Unfollow]: Finish.")
+                            self.unfollow_all()
+                            self.back = False
+                            print("[UnfollowAll]: Finish.")
                         elif choice == "3":
-                            like_blogs = threading.Thread(target=self.activity)
-                            like_blogs.start()
+                            thread_pool = ThreadPool(1)
+                            thread_pool.apply(self.activity)
                             input("\nPress ENTER to stop...\n")
                             self.back = True
-                            like_blogs.join()
+                            thread_pool.join()
                             self.back = False
                             print("[Activity]: Finish.")
                         elif choice == "4":
@@ -447,7 +468,7 @@ class ServiceApp:
                             input("Changes saved. Please restart the program...")
                             exit(0)
                         elif choice == "1":
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             result = pool.map(self.play_lottery, get_accounts())
                             count_result = get_count(result)
                             print(f"Accounts: {count_result['accounts']}\nResult: +{count_result['count']} coins")
@@ -455,7 +476,7 @@ class ServiceApp:
                         elif choice == "2":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             result = pool.map(self.send_coins, get_accounts())
                             count_result = get_count(result)
                             print(f"Accounts {count_result['accounts']}\nResult: +{count_result['count']} coins")
@@ -463,29 +484,34 @@ class ServiceApp:
                         elif choice == "3":
                             blog_link = input("Blog link: ")
                             self.object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             pool.map(self.like_blog, get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
                             self.object_id = Threads(self.client, self.com_id).select()
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             pool.map(self.join_bots_to_chat, get_accounts())
                             print("[JoinBotsToChat]: Finish.")
                         elif choice == "5":
                             self.object_id = Community(self.client).select()
-                            pool = Pool(pool_count)
-                            pool.map(self.join_bots_to_community, get_accounts())
+                            pool = Pool(set_pool_count())
+                            if self.client.get_community_info(self.object_id).joinType == 2:
+                                invite_link = input("Enter invite link/code: ")
+                                self.invitation_id = self.client.link_identify(code=str(invite_link.split("/")[-1])).get("invitationId")
+                                pool.map(self.join_bots_to_community, get_accounts())
+                            else:
+                                pool.map(self.join_bots_to_community, get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
                         elif choice == "6":
                             self.object_id = Threads(self.client, self.com_id).select()
                             self.text = input("Message text: ")
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             pool.map(self.send_message, get_accounts())
                             print("[SendMessage]: Finish.")
                         elif choice == "7":
                             user_link = input("Link to user: ")
                             self.object_id = self.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool = Pool(pool_count)
+                            pool = Pool(set_pool_count())
                             pool.map(self.follow, get_accounts())
                             print("[Follow]: Finish.")
                         elif choice == "s":
@@ -493,8 +519,9 @@ class ServiceApp:
                             print("[UpdateSIDs]: Finish.")
                         elif choice == "b":
                             back = True
-            except Exception:
+            except Exception as e:
                 print(traceback.format_exc())
+                print(colored(str(e), "red"))
 
     def play_lottery(self, account: dict):
         email = account.get("email")
@@ -595,36 +622,54 @@ class ServiceApp:
             else:
                 print(Log().align(email, "Community error"))
 
-    def unfollow(self):
+    def unfollow_all(self):
+        thread_pool = ThreadPool(20)
         sub_client = Community(self.client).sub_client(self.com_id)
-        back = False
-        iteration = 0
-        while not back:
-            for i in range(0, 2000, 100):
+        while not self.back:
+            for i in range(0, 1000000, 100):
                 followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
-                if not followings.userId:
-                    back = True
-                else:
+                if followings.userId:
                     for user_id in followings.userId:
-                        iteration += 1
-                        print(f"[{iteration}]: Unfollow")
-                        sub_client.unfollow(userId=user_id)
+                        thread_pool.apply_async(sub_client.unfollow, user_id)
+                else:
+                    self.back = True
+                    break
 
     def follow_all(self):
         print("Subscribe...")
         sub_client = Community(self.client).sub_client(self.com_id)
         for i in range(0, 20000, 100):
             users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
-            if len(users) > 0:
-                sub_client.follow(userId=users)
+            if users:
+                try:
+                    sub_client.follow(userId=users)
+                except Exception as e:
+                    print(e)
             else:
                 break
         for i in range(0, 10000, 100):
             users = sub_client.get_online_users(start=i, size=100).profile.userId
-            if len(users) > 0:
-                sub_client.follow(userId=users)
+            if users:
+                try:
+                    sub_client.follow(userId=users)
+                except Exception as e:
+                    print(e)
             else:
                 break
+        chats = sub_client.get_public_chat_threads(type="recommended", start=0, size=100).chatId
+        for chatid in chats:
+            for i in range(0, 1000, 100):
+                if chats:
+                    users = sub_client.get_chat_users(chatId=chatid, start=i, size=100).userId
+                    if users:
+                        try:
+                            sub_client.follow(userId=users)
+                        except Exception as e:
+                            print(e)
+                    else:
+                        break
+                else:
+                    break
 
     def activity(self):
         print("Activity...")
@@ -674,7 +719,7 @@ class ServiceApp:
         client = Login().multilogin_sid(account)
         if client:
             try:
-                client.join_community(comId=self.object_id)
+                client.join_community(comId=self.object_id, invitationId=self.invitation_id)
                 print(Log().align(email, "Join"))
             except amino.exceptions.InvalidSession:
                 print(Log().align(email, "SID update required..."))
