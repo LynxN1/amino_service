@@ -1,8 +1,5 @@
-import os
 import json
 import requests
-
-os.system('cls' if os.name == 'nt' else 'clear')
 
 with open("version.json") as info_file:
     info = json.load(info_file)

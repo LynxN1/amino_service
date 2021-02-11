@@ -10,62 +10,7 @@ from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
-
-
-def get_accounts():
-    with open(os.getcwd() + "/src/accounts/bots.yaml", "r") as accounts_file:
-        return yaml.load(accounts_file.read(), Loader=yaml.Loader)
-
-
-def get_comments():
-    with open(os.getcwd() + "/src/activity/comments.txt", "r", encoding="utf-8") as comments_file:
-        return comments_file.readlines()
-
-
-def get_devices():
-    with open(os.getcwd() + "/src/devices/devices.txt", "r") as devices_file:
-        return devices_file.readlines()
-
-
-def get_reg_devices():
-    with open(os.getcwd() + "/src/devices/reg_devices.txt", "r") as reg_devices_file:
-        return reg_devices_file.readlines()
-
-
-def get_count(values: list):
-    total_count = 0
-    total_accounts = 0
-    for i in values:
-        if type(i) == int:
-            total_accounts += 1
-            total_count += i
-    return {"count": total_count, "accounts": total_accounts}
-
-
-def set_bots():
-    accounts = []
-    with open(os.getcwd() + "/src/accounts/bots.txt", "r") as bots_file:
-        bots = bots_file.readlines()
-    for account in bots:
-        split = account.split(":")
-        email = split[0].replace("\n", "")
-        password = split[1].replace("\n", "")
-        accounts.append({"email": email, "password": password})
-    with open(os.getcwd() + "/src/accounts/bots.yaml", "a") as accounts_file:
-        yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
-    print("Ready!")
-
-
-def set_pool_count():
-    if len(get_accounts()) >= 10:
-        while True:
-            processes = input("Set the number of threads(1-50): ")
-            if 50 >= int(processes) >= 1:
-                return int(processes)
-            else:
-                print(colored("The number of threads must be from 1 to 50", "red"))
-    else:
-        return len(get_accounts()) if len(get_accounts()) <= 10 else 10
+from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_bots, set_pool_count
 
 
 class Login:
@@ -417,7 +362,7 @@ class ServiceApp:
         self.com_id = Community(self.client).select()
         self.object_id = None
         self.text = None
-        self.invitation_id = None
+        self.invite_link = None
         self.back = False
 
     def run(self):
@@ -425,7 +370,11 @@ class ServiceApp:
             try:
                 print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
                 management_choice = input("Enter the number >>> ")
-                if management_choice == "0":
+                if management_choice == "s":
+                    set_bots()
+                    input("Changes saved. Please restart the program...")
+                    exit(0)
+                elif management_choice == "0":
                     self.com_id = Community(self.client).select()
                 elif management_choice == "1":
                     back = False
@@ -463,11 +412,7 @@ class ServiceApp:
                     while not back:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")
-                        if choice == "0":
-                            set_bots()
-                            input("Changes saved. Please restart the program...")
-                            exit(0)
-                        elif choice == "1":
+                        if choice == "1":
                             pool = Pool(set_pool_count())
                             result = pool.map(self.play_lottery, get_accounts())
                             count_result = get_count(result)
@@ -496,8 +441,7 @@ class ServiceApp:
                             self.object_id = Community(self.client).select()
                             pool = Pool(set_pool_count())
                             if self.client.get_community_info(self.object_id).joinType == 2:
-                                invite_link = input("Enter invite link/code: ")
-                                self.invitation_id = self.client.link_identify(code=str(invite_link.split("/")[-1])).get("invitationId")
+                                self.invite_link = input("Enter invite link/code: ")
                                 pool.map(self.join_bots_to_community, get_accounts())
                             else:
                                 pool.map(self.join_bots_to_community, get_accounts())
@@ -718,13 +662,24 @@ class ServiceApp:
         email = account.get("email")
         client = Login().multilogin_sid(account)
         if client:
-            try:
-                client.join_community(comId=self.object_id, invitationId=self.invitation_id)
-                print(Log().align(email, "Join"))
-            except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
-            except Exception as e:
-                print(Log().align(email, str(e)))
+            if self.invite_link:
+                invitation_id = self.client.link_identify(code=str(self.invite_link.split("/")[-1])).get("invitationId")
+                if invitation_id:
+                    try:
+                        client.join_community(comId=self.object_id, invitationId=invitation_id)
+                        print(Log().align(email, "Join"))
+                    except amino.exceptions.InvalidSession:
+                        print(Log().align(email, "SID update required..."))
+                    except Exception as e:
+                        print(Log().align(email, str(e)))
+            else:
+                try:
+                    client.join_community(comId=self.object_id)
+                    print(Log().align(email, "Join"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
 
     def send_message(self, account: dict):
         email = account.get("email")
