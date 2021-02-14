@@ -309,8 +309,10 @@ class Community:
             sub_client = amino.SubClient(comId=com_id, profile=self.client.profile)
             return sub_client
         except amino.exceptions.UserNotMemberOfCommunity:
+            print("UserNotMemberOfCommunity")
             return False
         except amino.exceptions.UserUnavailable:
+            print("UserUnavailable")
             return False
         except Exception as e:
             print(e)
@@ -567,14 +569,16 @@ class ServiceApp:
                 print(Log().align(email, "Community error"))
 
     def unfollow_all(self):
+        print("Unfollow all...")
         thread_pool = ThreadPool(20)
         sub_client = Community(self.client).sub_client(self.com_id)
+        following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
         while not self.back:
-            for i in range(0, 1000000, 100):
+            for i in range(0, following_count, 100):
                 followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
                 if followings.userId:
                     for user_id in followings.userId:
-                        thread_pool.apply_async(sub_client.unfollow, user_id)
+                        thread_pool.apply(sub_client.unfollow, [user_id])
                 else:
                     self.back = True
                     break
