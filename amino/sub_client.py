@@ -9,7 +9,7 @@ from typing import BinaryIO
 from binascii import hexlify
 from time import time as timestamp
 
-from . import client
+from . import client, request_handler
 from .lib.util import exceptions, headers, device, objects
 
 device = device.DeviceGenerator()
@@ -178,14 +178,7 @@ class SubClient(client.Client):
             "timestamp": int(timestamp() * 1000)
         })
 
-        while True:
-            try:
-                response = requests.post(f"{self.api}/x{self.comId}/s/check-in/lottery",
-                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/check-in/lottery", data, headers.Headers(data=data).headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -318,27 +311,13 @@ class SubClient(client.Client):
                 data["eventSource"] = "UserProfileView"
                 data = json.dumps(data)
 
-                while True:
-                    try:
-                        response = requests.post(f"{self.api}/x{self.comId}/s/blog/{blogId}/vote?cv=1.2",
-                                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                                 verify=self.certificatePath)
-                        break
-                    except requests.exceptions.ConnectionError:
-                        pass
+                response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/blog/{blogId}/vote?cv=1.2", data, headers.Headers(data=data).headers)
 
             elif isinstance(blogId, list):
                 data["targetIdList"] = blogId
                 data = json.dumps(data)
 
-                while True:
-                    try:
-                        response = requests.post(f"{self.api}/x{self.comId}/s/feed/vote",
-                                                 headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                                 verify=self.certificatePath)
-                        break
-                    except requests.exceptions.ConnectionError:
-                        pass
+                response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/feed/vote", data, headers.Headers(data=data).headers)
 
             else:
                 raise exceptions.WrongType
@@ -347,14 +326,7 @@ class SubClient(client.Client):
             data["eventSource"] = "PostDetailView"
             data = json.dumps(data)
 
-            while True:
-                try:
-                    response = requests.post(f"{self.api}/x{self.comId}/s/item/{wikiId}/vote?cv=1.2",
-                                             headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                             verify=self.certificatePath)
-                    break
-                except requests.exceptions.ConnectionError:
-                    pass
+            response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/item/{wikiId}/vote?cv=1.2", data, headers.Headers(data=data).headers)
 
         else:
             raise exceptions.SpecifyType()
@@ -657,13 +629,7 @@ class SubClient(client.Client):
 
         data = json.dumps(data)
 
-        while True:
-            try:
-                response = requests.post(url, headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", url, data, headers.Headers(data=data).headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -690,15 +656,11 @@ class SubClient(client.Client):
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
         if isinstance(userId, str):
-            response = requests.post(f"{self.api}/x{self.comId}/s/user-profile/{userId}/member",
-                                     headers=headers.Headers().headers, proxies=self.proxies,
-                                     verify=self.certificatePath)
+            response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/user-profile/{userId}/member", headers=headers.Headers().headers)
 
         elif isinstance(userId, list):
             data = json.dumps({"targetUidList": userId, "timestamp": int(timestamp() * 1000)})
-            response = requests.post(f"{self.api}/x{self.comId}/s/user-profile/{self.profile.userId}/joined",
-                                     headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                     verify=self.certificatePath)
+            response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/user-profile/{self.profile.userId}/joined", data, headers.Headers(data=data).headers)
 
         else:
             raise exceptions.WrongType(type(userId))
@@ -924,14 +886,7 @@ class SubClient(client.Client):
             data["mediaUploadValue"] = base64.b64encode(file.read()).decode()
 
         data = json.dumps(data)
-        while True:
-            try:
-                response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message",
-                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message", data, headers.Headers(data=data).headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1225,13 +1180,7 @@ class SubClient(client.Client):
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        while True:
-            try:
-                response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/member/{self.profile.userId}",
-                                         headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/member/{self.profile.userId}", headers=headers.Headers().headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1316,14 +1265,7 @@ class SubClient(client.Client):
             "timestamp": int(timestamp() * 1000)
         })
 
-        while True:
-            try:
-                response = requests.post(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result",
-                                         headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                         verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result", data, headers.Headers(data=data).headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1422,13 +1364,7 @@ class SubClient(client.Client):
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        while True:
-            try:
-                response = requests.get(f"{self.api}/x{self.comId}/s/user-profile/{userId}", headers=headers.Headers().headers,
-                                        proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("GET", f"{self.api}/x{self.comId}/s/user-profile/{userId}", headers=headers.Headers().headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1851,13 +1787,7 @@ class SubClient(client.Client):
             return objects.BlogCategoryList(json.loads(response.text)["blogCategoryList"]).BlogCategoryList
 
     def get_quiz_rankings(self, quizId: str, start: int = 0, size: int = 25):
-        while True:
-            try:
-                response = requests.get(f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result?start={start}&size={size}",
-                                        headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                print("get_quiz_rankings Error")
+        response = request_handler.request("GET", f"{self.api}/x{self.comId}/s/blog/{quizId}/quiz/result?start={start}&size={size}", headers=headers.Headers().headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:

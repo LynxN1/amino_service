@@ -319,7 +319,7 @@ class Community:
             return False
 
 
-class Threads:
+class Chats:
     def __init__(self, client, com_id: str):
         self.sub_client = Community(client).sub_client(com_id)
 
@@ -435,7 +435,7 @@ class ServiceApp:
                             pool.map(self.like_blog, get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
-                            self.object_id = Threads(self.client, self.com_id).select()
+                            self.object_id = Chats(self.client, self.com_id).select()
                             pool = Pool(set_pool_count())
                             pool.map(self.join_bots_to_chat, get_accounts())
                             print("[JoinBotsToChat]: Finish.")
@@ -449,7 +449,7 @@ class ServiceApp:
                                 pool.map(self.join_bots_to_community, get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
                         elif choice == "6":
-                            self.object_id = Threads(self.client, self.com_id).select()
+                            self.object_id = Chats(self.client, self.com_id).select()
                             self.text = input("Message text: ")
                             pool = Pool(set_pool_count())
                             pool.map(self.send_message, get_accounts())
@@ -478,6 +478,7 @@ class ServiceApp:
                 try:
                     play = sub_client.lottery()
                     award = play.awardValue if play.awardValue else 0
+                    print(Log().align(email, f"+{award} coins won"))
                     return int(award)
                 except amino.exceptions.AlreadyPlayedLottery:
                     print(Log().align(email, "AlreadyPlayedLottery"))
@@ -500,7 +501,7 @@ class ServiceApp:
                     coins = int(client.get_wallet_info().totalCoins)
                     if coins != 0:
                         sub_client.send_coins(coins=coins, blogId=self.object_id)
-                        print(Log().align(email, f"{coins} coins sent"))
+                        print(Log().align(email, f"+{coins} coins"))
                         return coins
                     else:
                         print(Log().align(email, "NotEnoughCoins"))
@@ -570,22 +571,26 @@ class ServiceApp:
 
     def unfollow_all(self):
         print("Unfollow all...")
-        thread_pool = ThreadPool(20)
+        thread_pool = ThreadPool(40)
         sub_client = Community(self.client).sub_client(self.com_id)
-        following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
         while not self.back:
-            for i in range(0, following_count, 100):
-                followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
-                if followings.userId:
-                    for user_id in followings.userId:
-                        thread_pool.apply(sub_client.unfollow, [user_id])
-                else:
-                    self.back = True
-                    break
+            following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
+            if following_count > 0:
+                for i in range(0, 1000, 100):
+                    followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
+                    if followings.userId:
+                        for user_id in followings.userId:
+                            thread_pool.apply(sub_client.unfollow, [user_id])
+                    else:
+                        self.back = True
+                        break
+            else:
+                self.back = True
 
     def follow_all(self):
         print("Subscribe...")
         sub_client = Community(self.client).sub_client(self.com_id)
+        old = []
         for i in range(0, 20000, 100):
             users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
             if users:
@@ -595,7 +600,7 @@ class ServiceApp:
                     print(e)
             else:
                 break
-        for i in range(0, 10000, 100):
+        for i in range(0, 20000, 100):
             users = sub_client.get_online_users(start=i, size=100).profile.userId
             if users:
                 try:
@@ -604,20 +609,21 @@ class ServiceApp:
                     print(e)
             else:
                 break
-        chats = sub_client.get_public_chat_threads(type="recommended", start=0, size=100).chatId
-        for chatid in chats:
-            for i in range(0, 1000, 100):
-                if chats:
-                    users = sub_client.get_chat_users(chatId=chatid, start=i, size=100).userId
-                    if users:
-                        try:
-                            sub_client.follow(userId=users)
-                        except Exception as e:
-                            print(e)
-                    else:
-                        break
-                else:
-                    break
+        for i in range(0, 50000, 100):
+            chats = sub_client.get_public_chat_threads(type="recommended", start=i, size=100).chatId
+            if chats:
+                for chatid in chats:
+                    for x in range(0, 1000, 100):
+                        users = sub_client.get_chat_users(chatId=chatid, start=x, size=100).userId
+                        if users:
+                            try:
+                                sub_client.follow(userId=users)
+                            except Exception as e:
+                                print(e)
+                        else:
+                            break
+            else:
+                break
 
     def activity(self):
         print("Activity...")

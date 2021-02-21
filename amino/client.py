@@ -9,6 +9,7 @@ from binascii import hexlify
 from time import time as timestamp
 from locale import getdefaultlocale as locale
 
+from . import request_handler
 from .lib.util import exceptions, headers, device, objects
 
 device = device.DeviceGenerator()
@@ -58,13 +59,7 @@ class Client:
 
         header = headers.Headers(data=data).headers
         header["NDCDEVICEID"] = self.device_id
-
-        while True:
-            try:
-                response = requests.post(f"{self.api}/g/s/auth/login", headers=header, data=data, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/g/s/auth/login", data, header)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
@@ -83,12 +78,8 @@ class Client:
         **Parameters**
             - **SID** : SID of the account
         """
-        while True:
-            try:
-                event = self.get_eventlog()
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+
+        event = self.get_eventlog()
         self.authenticated = True
         self.sid = SID
         self.userId = event["auid"]
@@ -97,8 +88,7 @@ class Client:
         headers.sid = self.sid
 
     def get_eventlog(self):
-        response = requests.get(f"{self.api}/g/s/eventlog/profile?language=en", headers=headers.Headers().headers,
-                                proxies=self.proxies, verify=self.certificatePath)
+        response = request_handler.request("GET", f"{self.api}/g/s/eventlog/profile?language=en", headers=headers.Headers().headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -362,12 +352,7 @@ class Client:
             "timestamp": int(timestamp() * 1000)
         })
 
-        while True:
-            try:
-                response = requests.post(f"{self.api}/g/s/device", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("POST", f"{self.api}/g/s/device", data, headers.Headers(data=data).headers)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: self.configured = True; return response.status_code
 
@@ -418,12 +403,8 @@ class Client:
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        while True:
-            try:
-                response = requests.get(f"{self.api}/g/s/user-profile/{userId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+
+        response = request_handler.request("GET", f"{self.api}/g/s/user-profile/{userId}", headers=headers.Headers().headers)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfile(json.loads(response.text)["userProfile"]).UserProfile
 
@@ -1649,12 +1630,7 @@ class Client:
 
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        while True:
-            try:
-                response = requests.get(f"{self.api}/g/s/wallet", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
-                break
-            except requests.exceptions.ConnectionError:
-                pass
+        response = request_handler.request("GET", f"{self.api}/g/s/wallet", headers=headers.Headers().headers)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.WalletInfo(json.loads(response.text)["wallet"]).WalletInfo
 
