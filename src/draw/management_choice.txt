@@ -1,8 +1,6 @@
 =======================
 || Select management ||
 =======================
-||- s. Add accounts from bots.txt to bots.yaml
-||- 0. Chagne community
 ||- 1. Main Account
 ||- 2. Bots
 =======================

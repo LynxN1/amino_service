@@ -7,7 +7,8 @@
 ||- 2. SendCoins
 ||- 3. LikeBlog
 ||- 4. Join bots to chat
-||- 5. Join bots to community
-||- 6. Send message to chat
-||- 7. Follow bots to user
+||- 5. Remove bots from chat
+||- 6. Join bots to community
+||- 7. Send message to chat
+||- 8. Follow bots to user
 ====================

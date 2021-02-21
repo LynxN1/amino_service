@@ -34,20 +34,6 @@ def get_count(values: list):
     return {"count": total_count, "accounts": total_accounts}
 
 
-def set_bots():
-    accounts = []
-    with open(os.getcwd() + "/src/accounts/bots.txt", "r") as bots_file:
-        bots = bots_file.readlines()
-    for account in bots:
-        split = account.split(":")
-        email = split[0].replace("\n", "")
-        password = split[1].replace("\n", "")
-        accounts.append({"email": email, "password": password})
-    with open(os.getcwd() + "/src/accounts/bots.yaml", "a") as accounts_file:
-        yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
-    print("Ready!")
-
-
 def set_pool_count():
     if len(get_accounts()) >= 10:
         while True:
@@ -58,3 +44,4 @@ def set_pool_count():
                 print(colored("The number of threads must be from 1 to 50", "red"))
     else:
         return len(get_accounts()) if len(get_accounts()) <= 10 else 10
+
