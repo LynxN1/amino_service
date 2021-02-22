@@ -17,14 +17,14 @@ headers.sid = client.Client().sid
 
 
 class SubClient(client.Client):
-    def __init__(self, comId: str, profile: objects.UserProfile):
+    def __init__(self, comId: str, userId: str):
         client.Client.__init__(self)
 
         if not comId: raise exceptions.NoCommunity()
 
         self.comId = comId
         try:
-            self.profile: objects.UserProfile = self.get_user_info(userId=profile.userId)
+            self.profile: objects.UserProfile = self.get_user_info(userId=userId)
         except AttributeError:
             raise exceptions.FailedLogin()
 

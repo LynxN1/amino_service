@@ -230,11 +230,9 @@ class Register:
 
 
 class Community:
-    def __init__(self, client):
-        self.client = client
-
-    def select(self):
-        sub_clients = self.client.sub_clients(start=0, size=100)
+    @staticmethod
+    def select(client):
+        sub_clients = client.sub_clients(start=0, size=100)
         print("Select the community:")
         for x, name in enumerate(sub_clients.name, 1):
             print(f"{x}. {name}")
@@ -242,12 +240,13 @@ class Community:
             choice_sub_client = input("Enter community number: ")
             try:
                 return sub_clients.comId[int(choice_sub_client) - 1]
-            except IndexError:
+            except (IndexError, TypeError):
                 print(colored("Invalid community number", "red"))
 
-    def sub_client(self, com_id: str):
+    @staticmethod
+    def sub_client(com_id: str, userid: str):
         try:
-            sub_client = amino.SubClient(comId=com_id, profile=self.client.profile)
+            sub_client = amino.SubClient(comId=com_id, userId=userid)
             return sub_client
         except amino.exceptions.UserNotMemberOfCommunity:
             print("UserNotMemberOfCommunity")
@@ -262,7 +261,7 @@ class Community:
 
 class Chats:
     def __init__(self, client, com_id: str):
-        self.sub_client = Community(client).sub_client(com_id)
+        self.sub_client = Community().sub_client(com_id, client.userId)
 
     def select(self):
         get_chats = self.sub_client.get_chat_threads(start=0, size=100)
@@ -361,14 +360,14 @@ class ServiceApp:
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.leave_bots_from_chat, object_id), get_accounts())
                         elif choice == "6":
-                            object_id = Community(single_management.client).select()
+                            object_id = Community().select(single_management.client)
                             pool = Pool(set_pool_count())
                             invite_link = None
                             if single_management.client.get_community_info(object_id).joinType == 2:
                                 invite_link = input("Enter invite link/code: ")
                             pool.map(partial(multi_management.join_bots_to_community, invite_link), get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
-                        elif choice == "6":
+                        elif choice == "7":
                             object_id = Chats(single_management.client, multi_management.com_id).select()
                             text = input("Message text: ")
                             pool = Pool(set_pool_count())
@@ -426,13 +425,13 @@ class SingleAccountManagement:
                     set_auth_data({"email": email, "password": password})
                     break
         print("Login was successful!")
-        self.com_id = Community(self.client).select()
+        self.com_id = Community().select(self.client)
 
     def play_quiz(self, object_id: str):
         questions_list = []
         answers_list = []
 
-        sub_client = Community(self.client).sub_client(self.com_id)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         quiz_info = sub_client.get_blog_info(quizId=object_id).json
         questions = quiz_info["blog"]["quizQuestionList"]
         total_questions = quiz_info["blog"]["extensions"]["quizTotalQuestionCount"]
@@ -461,7 +460,7 @@ class SingleAccountManagement:
     def unfollow_all(self):
         print("Unfollow all...")
         thread_pool = ThreadPool(40)
-        sub_client = Community(self.client).sub_client(self.com_id)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         while True:
             following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
             if following_count > 0:
@@ -478,31 +477,31 @@ class SingleAccountManagement:
     def activity(self, count: int):
         print("Activity...")
         comments = get_comments()
-        subclient = amino.SubClient(comId=self.com_id, profile=self.client.profile)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         old_blogs = []
         liked = 0
         while liked <= count:
-            recent_blogs = subclient.get_recent_blogs(start=0, size=100)
+            recent_blogs = sub_client.get_recent_blogs(start=0, size=100)
             for blog_id, blog_type in zip(recent_blogs.blog.blogId, recent_blogs.blog.type):
                 if blog_id not in old_blogs:
                     try:
-                        subclient.like_blog(blogId=blog_id)
+                        sub_client.like_blog(blogId=blog_id)
                         liked += 1
                         if comments:
-                            subclient.comment(message=random.choice(comments), blogId=blog_id)
+                            sub_client.comment(message=random.choice(comments), blogId=blog_id)
                             time.sleep(2.5)
                     except amino.exceptions.RequestedNoLongerExists:
-                        subclient.like_blog(wikiId=blog_id)
+                        sub_client.like_blog(wikiId=blog_id)
                         liked += 1
                         if comments:
-                            subclient.comment(message=random.choice(comments), wikiId=blog_id)
+                            sub_client.comment(message=random.choice(comments), wikiId=blog_id)
                             time.sleep(2.5)
                     old_blogs.append(blog_id)
             time.sleep(5)
 
     def follow_all(self):
         print("Subscribe...")
-        sub_client = Community(self.client).sub_client(self.com_id)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         for i in range(0, 20000, 100):
             users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
             if users:
@@ -544,9 +543,10 @@ class MultiAccountsManagement:
 
     def play_lottery(self, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     play = sub_client.lottery()
@@ -566,9 +566,10 @@ class MultiAccountsManagement:
 
     def send_coins(self, object_id, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     coins = int(client.get_wallet_info().totalCoins)
@@ -593,9 +594,10 @@ class MultiAccountsManagement:
 
     def like_blog(self, object_id, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.like_blog(blogId=object_id)
@@ -614,9 +616,10 @@ class MultiAccountsManagement:
 
     def join_bots_to_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().login(account)
+        userid = account.get("uid")
+        client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.join_chat(chatId=object_id)
@@ -634,9 +637,10 @@ class MultiAccountsManagement:
 
     def leave_bots_from_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().login(account)
+        userid = account.get("uid")
+        client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.leave_chat(chatId=object_id)
@@ -677,9 +681,10 @@ class MultiAccountsManagement:
 
     def send_message(self, object_id, text, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.send_message(chatId=object_id, message=text)
@@ -701,9 +706,10 @@ class MultiAccountsManagement:
 
     def follow(self, object_id, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.follow(userId=object_id)
@@ -723,9 +729,10 @@ class MultiAccountsManagement:
 
     def unfollow(self, object_id, account: dict):
         email = account.get("email")
+        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community(client).sub_client(self.com_id)
+            sub_client = Community().sub_client(self.com_id, userid)
             if sub_client:
                 try:
                     sub_client.unfollow(userId=object_id)
@@ -754,7 +761,7 @@ class ChatModeration:
         pool = ThreadPool(40)
         deleted = 0
         next_page = None
-        sub_client = Community(self.client).sub_client(self.com_id)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         chat = sub_client.get_chat_thread(chatId=chatid)
         admins = [*chat.coHosts, chat.author.userId]
         if self.client.userId in admins:
@@ -778,7 +785,7 @@ class ChatModeration:
             pass
         else:
             os.mkdir(os.path.join(os.getcwd(), "src", "chat_settings"))
-        sub_client = Community(self.client).sub_client(self.com_id)
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
         with open(os.path.join(os.getcwd(), "src", "chat_settings", f"{chatid}.txt"), "w", encoding="utf-8") as settings_file:
             chat = sub_client.get_chat_thread(chatId=chatid)
             data = "====================Title====================\n" \
