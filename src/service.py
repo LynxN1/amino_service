@@ -92,18 +92,21 @@ class Login:
         accounts = get_accounts()
         bad_accounts = []
         if accounts:
-            for i in accounts:
-                if i.get("sid") is None:
-                    bad_accounts.append(i)
-            for i in bad_accounts:
-                accounts.remove(i)
+            for account in accounts:
+                if account:
+                    if account.get("sid") is None:
+                        bad_accounts.append(account)
+                else:
+                    accounts.remove(account)
+            for account in bad_accounts:
+                accounts.remove(account)
             if bad_accounts:
                 print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
                 pool = Pool(set_pool_count())
-                sid_pool = pool.map(self.get_sid, bad_accounts)
-                for i in sid_pool:
-                    if i:
-                        accounts.append(i)
+                sid_pool = pool.map(self.login, bad_accounts)
+                for client, account in zip(sid_pool, bad_accounts):
+                    if client:
+                        accounts.append({"email": account.get("email"), "password": account.get("password"), "uid": client.profile.userId, "sid": client.sid})
                 if accounts:
                     set_accounts(accounts)
         else:
@@ -111,42 +114,13 @@ class Login:
 
     def update_sid(self):
         print("Starting update...")
+        accounts = []
         pool = Pool(set_pool_count())
-        sid_pool = pool.map(self.get_sid, get_accounts())
-        set_accounts(sid_pool)
-
-    def get_sid(self, account: dict):
-        email = account.get("email")
-        password = account.get("password")
-        while True:
-            try:
-                self.client.login(email, password)
-                print(Log().align(email, "SID updated"))
-                return {"email": email, "password": password, "uid": self.client.userId, "sid": self.client.sid}
-            except amino.exceptions.ActionNotAllowed:
-                print(Log().align(email, "device_id updated"))
-                self.client.device_id = random.choice(get_devices()).replace("\n", "")
-            except amino.exceptions.FailedLogin:
-                print(Log().align(email, "Failed login"))
-                return
-            except amino.exceptions.InvalidAccountOrPassword:
-                print(Log().align(email, "Invalid account or password"))
-                return
-            except amino.exceptions.InvalidPassword:
-                print(Log().align(email, "Invalid Password"))
-                return
-            except amino.exceptions.InvalidEmail:
-                print(Log().align(email, "Invalid Email"))
-                return
-            except amino.exceptions.AccountDoesntExist:
-                print(Log().align(email, "Account does not exist"))
-                return
-            except amino.exceptions.VerificationRequired as verify:
-                print(Log().align(email, str(verify)))
-                return
-            except Exception as e:
-                print(Log().align(email, str(e)))
-                return
+        sid_pool = pool.map(self.login, get_accounts())
+        for client, account in zip(sid_pool, get_accounts()):
+            if client:
+                accounts.append({"email": account.get("email"), "password": account.get("password"), "uid": client.profile.userId, "sid": client.sid})
+        set_accounts(accounts)
 
 
 class Register:
