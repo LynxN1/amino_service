@@ -4117,20 +4117,18 @@ class Message:
 
 
 class MessageList:
-    def __init__(self, data):
+    def __init__(self, data, nextPageToken = None, prevPageToken = None):
         _author, _sticker = [], []
 
         self.json = data
+        self.nextPageToken = nextPageToken
+        self.prevPageToken = prevPageToken
 
         for y in data:
-            try:
-                _author.append(y["author"])
-            except (KeyError, TypeError):
-                _author.append(None)
-            try:
-                _sticker.append(y["extensions"]["sticker"])
-            except (KeyError, TypeError):
-                _sticker.append(None)
+            try: _author.append(y["author"])
+            except (KeyError, TypeError): _author.append(None)
+            try: _sticker.append(y["extensions"]["sticker"])
+            except (KeyError, TypeError): _sticker.append(None)
 
         self.author: UserProfileList = UserProfileList(_author).UserProfileList
         self.sticker: StickerList = StickerList(_sticker).StickerList
@@ -4156,100 +4154,79 @@ class MessageList:
         self.videoHeight = []
         self.videoWidth = []
         self.videoCoverImage = []
+        self.tippingCoins = []
 
     @property
     def MessageList(self):
         for x in self.json:
-            try:
-                self.content.append(x["content"])
-            except (KeyError, TypeError):
-                self.content.append(None)
-            try:
-                self.includedInSummary.append(x["includedInSummary"])
-            except (KeyError, TypeError):
-                self.includedInSummary.append(None)
-            try:
-                self.isHidden.append(x["isHidden"])
-            except (KeyError, TypeError):
-                self.isHidden.append(None)
-            try:
-                self.messageId.append(x["messageId"])
-            except (KeyError, TypeError):
-                self.messageId.append(None)
-            try:
-                self.chatBubbleId.append(x["chatBubbleId"])
-            except (KeyError, TypeError):
-                self.chatBubbleId.append(None)
-            try:
-                self.clientRefId.append(x["clientRefId"])
-            except (KeyError, TypeError):
-                self.clientRefId.append(None)
-            try:
-                self.chatId.append(x["threadId"])
-            except (KeyError, TypeError):
-                self.chatId.append(None)
-            try:
-                self.messageType.append(x["messageType"])
-            except (KeyError, TypeError):
-                self.messageType.append(None)
-            try:
-                self.createdTime.append(x["createdTime"])
-            except (KeyError, TypeError):
-                self.createdTime.append(None)
-            try:
-                self.chatBubbleVersion.append(x["chatBubbleVersion"])
-            except (KeyError, TypeError):
-                self.chatBubbleVersion.append(None)
-            try:
-                self.type.append(x["type"])
-            except (KeyError, TypeError):
-                self.type.append(None)
-            try:
-                self.mediaValue.append(x["mediaValue"])
-            except (KeyError, TypeError):
-                self.mediaValue.append(None)
-            try:
-                self.mediaType.append(x["mediaType"])
-            except (KeyError, TypeError):
-                self.mediaType.append(None)
-            try:
-                self.extensions.append(x["extensions"])
-            except (KeyError, TypeError):
-                self.extensions.append(None)
-            try:
-                self.duration.append(x["extensions"]["duration"])
-            except (KeyError, TypeError):
-                self.duration.append(None)
-            try:
-                self.originalStickerId.append(x["extensions"]["originalStickerId"])
-            except (KeyError, TypeError):
-                self.originalStickerId.append(None)
-            try:
-                self.mentionUserIds.append(x["extensions"]["mentionUserIds"])
-            except (KeyError, TypeError):
-                self.mentionUserIds.append(None)
-            try:
-                self.videoExtensions.append(x["extensions"]["videoExtensions"])
-            except (KeyError, TypeError):
-                self.videoExtensions.append(None)
-            try:
-                self.videoDuration.append(x["extensions"]["videoExtensions"]["duration"])
-            except (KeyError, TypeError):
-                self.videoDuration.append(None)
-            try:
-                self.videoHeight.append(x["extensions"]["videoExtensions"]["height"])
-            except (KeyError, TypeError):
-                self.videoHeight.append(None)
-            try:
-                self.videoWidth.append(x["extensions"]["videoExtensions"]["width"])
-            except (KeyError, TypeError):
-                self.videoWidth.append(None)
-            try:
-                self.videoCoverImage.append(x["extensions"]["videoExtensions"]["coverImage"])
-            except (KeyError, TypeError):
-                self.videoCoverImage.append(None)
+            try: self.content.append(x["content"])
+            except (KeyError, TypeError): self.content.append(None)
+            try: self.includedInSummary.append(x["includedInSummary"])
+            except (KeyError, TypeError): self.includedInSummary.append(None)
+            try: self.isHidden.append(x["isHidden"])
+            except (KeyError, TypeError): self.isHidden.append(None)
+            try: self.messageId.append(x["messageId"])
+            except (KeyError, TypeError): self.messageId.append(None)
+            try: self.chatBubbleId.append(x["chatBubbleId"])
+            except (KeyError, TypeError): self.chatBubbleId.append(None)
+            try: self.clientRefId.append(x["clientRefId"])
+            except (KeyError, TypeError): self.clientRefId.append(None)
+            try: self.chatId.append(x["threadId"])
+            except (KeyError, TypeError): self.chatId.append(None)
+            try: self.messageType.append(x["messageType"])
+            except (KeyError, TypeError): self.messageType.append(None)
+            try: self.createdTime.append(x["createdTime"])
+            except (KeyError, TypeError): self.createdTime.append(None)
+            try: self.chatBubbleVersion.append(x["chatBubbleVersion"])
+            except (KeyError, TypeError): self.chatBubbleVersion.append(None)
+            try: self.type.append(x["type"])
+            except (KeyError, TypeError): self.type.append(None)
+            try: self.mediaValue.append(x["mediaValue"])
+            except (KeyError, TypeError): self.mediaValue.append(None)
+            try: self.mediaType.append(x["mediaType"])
+            except (KeyError, TypeError): self.mediaType.append(None)
+            try: self.extensions.append(x["extensions"])
+            except (KeyError, TypeError): self.extensions.append(None)
+            try: self.duration.append(x["extensions"]["duration"])
+            except (KeyError, TypeError): self.duration.append(None)
+            try: self.originalStickerId.append(x["extensions"]["originalStickerId"])
+            except (KeyError, TypeError): self.originalStickerId.append(None)
+            try: self.mentionUserIds.append(x["extensions"]["mentionUserIds"])
+            except (KeyError, TypeError): self.mentionUserIds.append(None)
+            try: self.videoExtensions.append(x["extensions"]["videoExtensions"])
+            except (KeyError, TypeError): self.videoExtensions.append(None)
+            try: self.videoDuration.append(x["extensions"]["videoExtensions"]["duration"])
+            except (KeyError, TypeError): self.videoDuration.append(None)
+            try: self.videoHeight.append(x["extensions"]["videoExtensions"]["height"])
+            except (KeyError, TypeError): self.videoHeight.append(None)
+            try: self.videoWidth.append(x["extensions"]["videoExtensions"]["width"])
+            except (KeyError, TypeError): self.videoWidth.append(None)
+            try: self.videoCoverImage.append(x["extensions"]["videoExtensions"]["coverImage"])
+            except (KeyError, TypeError): self.videoCoverImage.append(None)
+            try: self.tippingCoins.append(x["extensions"]["tippingCoins"])
+            except (KeyError, TypeError): self.tippingCoins.append(None)
 
         return self
+
+
+class GetMessages:
+    def __init__(self, data):
+        self.json = data
+
+        self.messageList = []
+        self.nextPageToken = None
+        self.prevPageToken = None
+
+    @property
+    def GetMessages(self):
+        try: self.nextPageToken = self.json["paging"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.prevPageToken = self.json["paging"]["prevPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.messageList = self.json["messageList"]
+        except (KeyError, TypeError): pass
+
+        return MessageList(self.messageList, self.nextPageToken, self.prevPageToken).MessageList
 
 
 class CommunityStickerCollection:

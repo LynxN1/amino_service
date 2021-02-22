@@ -915,13 +915,9 @@ class SubClient(client.Client):
 
         data = json.dumps(data)
         if not asStaff:
-            response = requests.delete(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}",
-                                       headers=headers.Headers().headers, proxies=self.proxies,
-                                       verify=self.certificatePath)
+            response = request_handler.request("DELETE", f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}", headers=headers.Headers().headers)
         else:
-            response = requests.post(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}/admin",
-                                     headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies,
-                                     verify=self.certificatePath)
+            response = request_handler.request("POST", f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}/admin", data, headers.Headers().headers)
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
@@ -1677,26 +1673,24 @@ class SubClient(client.Client):
         else:
             return objects.Thread(json.loads(response.text)["thread"]).Thread
 
-    def get_chat_messages(self, chatId: str, size: int = 25):
+    def get_chat_messages(self, chatId: str, size: int = 25, pageToken: str = None):
         """
         List of Messages from an Chat.
-
         **Parameters**
             - **chatId** : ID of the Chat.
-            - *start* : Where to start the list.
             - *size* : Size of the list.
-
+            - *pageToken* : Next Page Token.
         **Returns**
             - **Success** : :meth:`Message List <amino.lib.util.objects.MessageList>`
-
             - **Fail** : :meth:`Exceptions <amino.lib.util.exceptions>`
         """
-        response = requests.get(f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}",
-                                headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
-        if response.status_code != 200:
-            return exceptions.CheckException(json.loads(response.text))
-        else:
-            return objects.MessageList(json.loads(response.text)["messageList"]).MessageList
+
+        if pageToken is not None: url = f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&pageToken={pageToken}&size={size}"
+        else: url = f"{self.api}/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}"
+
+        response = request_handler.request("GET", url, headers=headers.Headers().headers)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.GetMessages(json.loads(response.text)).GetMessages
 
     def get_message_info(self, chatId: str, messageId: str):
         """

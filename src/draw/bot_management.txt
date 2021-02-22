@@ -11,4 +11,5 @@
 ||- 6. Join bots to community
 ||- 7. Send message to chat
 ||- 8. Follow bots to user
+||- 9. Unfollow bots from user
 ====================

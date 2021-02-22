@@ -1,6 +1,5 @@
 import os
 import amino
-import json
 import yaml
 import random
 import time
@@ -11,38 +10,16 @@ from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
-from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count
+from .config import get_accounts, get_devices, get_count, \
+    get_reg_devices, get_comments, set_pool_count, \
+    set_accounts, get_auth_data, set_auth_data
 
 
 class Login:
     def __init__(self):
         self.client = amino.Client()
 
-    def login(self, email: str):
-        while True:
-            password = self.get_password(email)
-            try:
-                print(f"Authorization {email}...")
-                self.client.login(email=email, password=password)
-                print("Authorization was successful")
-                self.save_auth_data(email, password)
-                return self.client
-            except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = random.choice(get_devices()).replace("\n", "")
-            except amino.exceptions.FailedLogin:
-                print(f"[{email}]: Failed Login")
-            except amino.exceptions.InvalidAccountOrPassword:
-                print(f"[{email}]: Invalid account or password.")
-            except amino.exceptions.InvalidPassword:
-                print(f"[{email}]: Invalid Password")
-            except amino.exceptions.InvalidEmail:
-                print(f"[{email}]: Invalid Email")
-            except amino.exceptions.AccountDoesntExist:
-                print(f"[{email}]: Account does not exist")
-            except amino.exceptions.VerificationRequired as verify:
-                print(f"[Confirm your account]: {verify}")
-
-    def multilogin_sid(self, account: dict):
+    def login_sid(self, account: dict):
         email = account.get("email")
         sid = account.get("sid")
         while True:
@@ -76,7 +53,7 @@ class Login:
                 print(Log().align(email, str(e)))
                 return False
 
-    def multilogin(self, account: dict):
+    def login(self, account: dict):
         email = account.get("email")
         password = account.get("password")
         while True:
@@ -128,8 +105,7 @@ class Login:
                     if i:
                         accounts.append(i)
                 if accounts:
-                    with open("src/accounts/bots.yaml", "w") as accounts_file:
-                        yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
+                    set_accounts(accounts)
         else:
             print(colored("bots.yaml is empty", "red"))
 
@@ -137,8 +113,7 @@ class Login:
         print("Starting update...")
         pool = Pool(set_pool_count())
         sid_pool = pool.map(self.get_sid, get_accounts())
-        with open("src/accounts/bots.yaml", "w") as accounts_file:
-            yaml.dump(sid_pool, accounts_file, Dumper=yaml.Dumper)
+        set_accounts(sid_pool)
 
     def get_sid(self, account: dict):
         email = account.get("email")
@@ -173,25 +148,6 @@ class Login:
                 print(Log().align(email, str(e)))
                 return
 
-    @staticmethod
-    def get_password(email: str):
-        with open("src/auth/data.json", "r") as f:
-            auth_data = json.load(f)
-        try:
-            password = auth_data[email]
-            return password
-        except (KeyError, IndexError, TypeError):
-            password = input("Password: ")
-            return password
-
-    @staticmethod
-    def save_auth_data(email: str, password: str):
-        with open("src/auth/data.json", "r") as f:
-            auth_data = json.load(f)
-        with open("src/auth/data.json", "w") as f:
-            auth_data.update({email: password})
-            json.dump(auth_data, f, indent=2)
-
 
 class Register:
     def __init__(self):
@@ -214,7 +170,10 @@ class Register:
                         self.client.request_verify_code(deviceId=self.current_device, email=self.email)
                         if self.verify():
                             if self.login():
-                                self.save_account()
+                                if self.activate():
+                                    self.save_account()
+                                else:
+                                    continue
                             else:
                                 continue
                         else:
@@ -285,8 +244,8 @@ class Register:
                 return False
 
     def save_account(self):
-        with open(os.getcwd() + "/src/accounts/bots.yaml", "a") as accounts_file:
-            yaml.dump([{"email": self.email, "password": self.password}], accounts_file, Dumper=yaml.Dumper)
+        with open(os.getcwd() + "/src/accounts/new_accounts.yaml", "a") as accounts_file:
+            yaml.dump({"email": self.email, "password": self.password}, accounts_file, Dumper=yaml.Dumper)
 
 
 class Community:
@@ -357,7 +316,7 @@ class ServiceApp:
     def __init__(self):
         single_management = SingleAccountManagement()
         multi_management = MultiAccountsManagement(single_management.com_id)
-        multi_management.client = single_management.client
+        chat_moderation = ChatModeration(single_management.client, single_management.com_id)
         while True:
             try:
                 print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
@@ -399,7 +358,7 @@ class ServiceApp:
                             print("[PlayLottery]: Finish.")
                         elif choice == "2":
                             blog_link = input("Blog link: ")
-                            object_id = multi_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                            object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
                             pool = Pool(set_pool_count())
                             result = pool.map(partial(multi_management.send_coins, object_id), get_accounts())
                             count_result = get_count(result)
@@ -407,42 +366,62 @@ class ServiceApp:
                             print("[SendCoins]: Finish.")
                         elif choice == "3":
                             blog_link = input("Blog link: ")
-                            object_id = multi_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                            object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.like_blog, object_id), get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
-                            object_id = Chats(multi_management.client, multi_management.com_id).select()
+                            object_id = Chats(single_management.client, multi_management.com_id).select()
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.join_bots_to_chat, object_id), get_accounts())
                             print("[JoinBotsToChat]: Finish.")
                         elif choice == "5":
-                            object_id = Chats(multi_management.client, multi_management.com_id).select()
+                            object_id = Chats(single_management.client, multi_management.com_id).select()
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.leave_bots_from_chat, object_id), get_accounts())
                         elif choice == "6":
-                            object_id = Community(multi_management.client).select()
+                            object_id = Community(single_management.client).select()
                             pool = Pool(set_pool_count())
                             invite_link = None
-                            if multi_management.client.get_community_info(object_id).joinType == 2:
+                            if single_management.client.get_community_info(object_id).joinType == 2:
                                 invite_link = input("Enter invite link/code: ")
                             pool.map(partial(multi_management.join_bots_to_community, invite_link), get_accounts())
                             print("[JoinBotsToCommunity]: Finish.")
                         elif choice == "6":
-                            object_id = Chats(multi_management.client, multi_management.com_id).select()
+                            object_id = Chats(single_management.client, multi_management.com_id).select()
                             text = input("Message text: ")
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.send_message, object_id, text), get_accounts())
                             print("[SendMessage]: Finish.")
                         elif choice == "8":
                             user_link = input("Link to user: ")
-                            object_id = multi_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                            object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.follow, object_id), get_accounts())
                             print("[Follow]: Finish.")
+                        elif choice == "9":
+                            user_link = input("Link to user: ")
+                            object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                            pool = Pool(set_pool_count())
+                            pool.map(partial(multi_management.unfollow, object_id), get_accounts())
+                            print("[Unfollow]: Finish.")
                         elif choice == "s":
                             Login().update_sid()
                             print("[UpdateSIDs]: Finish.")
+                        elif choice == "b":
+                            break
+                elif management_choice == "3":
+                    while True:
+                        print(colored(open("src/draw/chat_moderation.txt", "r").read(), "cyan"))
+                        choice = input("Enter the number >>> ")
+                        if choice == "1":
+                            object_id = Chats(single_management.client, single_management.com_id).select()
+                            count = input("Number of messages: ")
+                            chat_moderation.clear_chat(object_id, int(count))
+                            print("[ClearChat]: Finish.")
+                        elif choice == "2":
+                            object_id = Chats(single_management.client, single_management.com_id).select()
+                            chat_moderation.save_chat_settings(object_id)
                         elif choice == "b":
                             break
             except Exception as e:
@@ -452,13 +431,20 @@ class ServiceApp:
 
 class SingleAccountManagement:
     def __init__(self):
-        with open(os.getcwd() + "/src/auth/data.json", "r") as auth_file:
-            auth_data = json.loads(auth_file.read())
-            if auth_data:
-                for email in auth_data.keys():
-                    self.client = Login().login(email=email)
-            else:
-                self.client = Login().login(email=input("Email: "))
+        auth_data = get_auth_data()
+        if auth_data:
+            self.client = Login().login(get_auth_data())
+        else:
+            while True:
+                email = input("Email: ")
+                password = input("Password: ")
+                self.client = Login().login({"email": email, "password": password})
+                if self.client is False:
+                    print(colored("Failed login", "red"))
+                else:
+                    set_auth_data({"email": email, "password": password})
+                    break
+        print("Authorization was successful!")
         self.com_id = Community(self.client).select()
 
     def play_quiz(self, object_id: str):
@@ -577,7 +563,7 @@ class MultiAccountsManagement:
 
     def play_lottery(self, account: dict):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -599,7 +585,7 @@ class MultiAccountsManagement:
 
     def send_coins(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -626,7 +612,7 @@ class MultiAccountsManagement:
 
     def like_blog(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -647,7 +633,7 @@ class MultiAccountsManagement:
 
     def join_bots_to_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().login(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -667,7 +653,7 @@ class MultiAccountsManagement:
 
     def leave_bots_from_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().multilogin(account)
+        client = Login().login(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -687,7 +673,7 @@ class MultiAccountsManagement:
 
     def join_bots_to_community(self, inv_link=None, account: dict = None):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             if inv_link:
                 invitation_id = client.link_identify(code=str(inv_link.split("/")[-1])).get("invitationId")
@@ -710,7 +696,7 @@ class MultiAccountsManagement:
 
     def send_message(self, object_id, text, account: dict):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -734,7 +720,7 @@ class MultiAccountsManagement:
 
     def follow(self, object_id, account: dict):
         email = account.get("email")
-        client = Login().multilogin_sid(account)
+        client = Login().login_sid(account)
         if client:
             sub_client = Community(client).sub_client(self.com_id)
             if sub_client:
@@ -753,3 +739,81 @@ class MultiAccountsManagement:
                     print(Log().align(email, str(e)))
             else:
                 print(Log().align(email, "Community error"))
+
+    def unfollow(self, object_id, account: dict):
+        email = account.get("email")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community(client).sub_client(self.com_id)
+            if sub_client:
+                try:
+                    sub_client.unfollow(userId=object_id)
+                    print(Log().align(email, "Unfollow"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.AccessDenied:
+                    print(Log().align(email, "Access denied"))
+                except amino.exceptions.BlockedByUser:
+                    print(Log().align(email, "You are blocked by this user"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
+
+
+class ChatModeration:
+    def __init__(self, client, com_id):
+        self.client = client
+        self.com_id = com_id
+
+    def clear_chat(self, chatid, count):
+        print("Clearing chat...")
+        pool = ThreadPool(40)
+        deleted = 0
+        next_page = None
+        sub_client = Community(self.client).sub_client(self.com_id)
+        chat = sub_client.get_chat_thread(chatId=chatid)
+        admins = [*chat.coHosts, chat.author.userId]
+        if self.client.userId in admins:
+            while deleted <= count:
+                messages = sub_client.get_chat_messages(chatId=chatid, size=100, pageToken=next_page)
+                if messages.messageId:
+                    next_page = messages.nextPageToken
+                    for message_id in messages.messageId:
+                        if deleted < count:
+                            pool.apply_async(sub_client.delete_message, [chatid, message_id])
+                            deleted += 1
+                        else:
+                            break
+                else:
+                    break
+        else:
+            print(colored("You don't have co-host/host rights to use this function", "red"))
+
+    def save_chat_settings(self, chatid):
+        if os.path.exists(os.path.join(os.getcwd(), "src", "chat_settings")):
+            pass
+        else:
+            os.mkdir(os.path.join(os.getcwd(), "src", "chat_settings"))
+        sub_client = Community(self.client).sub_client(self.com_id)
+        with open(os.path.join(os.getcwd(), "src", "chat_settings", f"{chatid}.txt"), "w", encoding="utf-8") as settings_file:
+            chat = sub_client.get_chat_thread(chatId=chatid)
+            data = "====================Title====================\n" \
+                   f"{chat.title}\n\n" \
+                   "===================Content===================\n" \
+                   f"{chat.content}\n\n" \
+                   "====================Icon====================\n" \
+                   f"{chat.icon}\n\n" \
+                   "=================Background=================\n" \
+                   f"{chat.backgroundImage}\n\n"
+            if chat.announcement:
+                data += "================Announcement================\n"
+                data += f"{chat.announcement}\n"
+            if chat.userAddedTopicList:
+                data += "================Tags================\n"
+                for i in chat.userAddedTopicList:
+                    data += f"{i.get('name')}\nColor: {i.get('style').get('backgroundColor')}\n"
+            settings_file.write(data)
+        print(colored(f"Settings saved in {os.path.join(os.getcwd(), 'src', 'chat_settings', f'{chatid}.txt')}", "green"))
