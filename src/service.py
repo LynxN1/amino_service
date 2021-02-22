@@ -114,13 +114,20 @@ class Login:
 
     def update_sid(self):
         print("Starting update...")
-        accounts = []
         pool = Pool(set_pool_count())
-        sid_pool = pool.map(self.login, get_accounts())
-        for client, account in zip(sid_pool, get_accounts()):
-            if client:
-                accounts.append({"email": account.get("email"), "password": account.get("password"), "uid": client.profile.userId, "sid": client.sid})
-        set_accounts(accounts)
+        sid_pool = pool.map(self.get_sid, get_accounts())
+        for account in sid_pool:
+            if not account:
+                sid_pool.remove(account)
+        set_accounts(sid_pool)
+
+    def get_sid(self, account: dict):
+        client = self.login(account)
+        if client:
+            print(Log().align(account.get("email"), "SID updated"))
+            return {"email": account.get("email"), "password": account.get("password"), "sid": client.sid, "uid": client.profile.userId}
+        else:
+            return False
 
 
 class Register:
@@ -418,7 +425,7 @@ class SingleAccountManagement:
                 else:
                     set_auth_data({"email": email, "password": password})
                     break
-        print("Authorization was successful!")
+        print("Login was successful!")
         self.com_id = Community(self.client).select()
 
     def play_quiz(self, object_id: str):
