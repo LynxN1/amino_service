@@ -2,7 +2,7 @@
 ||      Menu      ||
 ====================
 ||- b. Back
-||- 1. PlayQuiz
+||- 1. Play quiz
 ||- 2. Unfollow all
 ||- 3. Activity
 ||- 4. Follow all

@@ -385,6 +385,10 @@ class ServiceApp:
                             pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.unfollow, object_id), get_accounts())
                             print("[Unfollow]: Finish.")
+                        elif choice == "10":
+                            pool = Pool(set_pool_count())
+                            pool.map(multi_management.set_online_status, get_accounts())
+                            print("[SetOnlineStatus]: Finish.")
                         elif choice == "s":
                             Login().update_sid()
                             print("[UpdateSIDs]: Finish.")
@@ -402,6 +406,11 @@ class ServiceApp:
                         elif choice == "2":
                             object_id = Chats(single_management.client, single_management.com_id).select()
                             chat_moderation.save_chat_settings(object_id)
+                            print("[SaveChatSettings]: Finish.")
+                        elif choice == "3":
+                            object_id = Chats(single_management.client, single_management.com_id).select()
+                            chat_moderation.set_view_mode(object_id)
+                            print("[SetViewMode]: Finish.")
                         elif choice == "b":
                             break
             except Exception as e:
@@ -750,6 +759,25 @@ class MultiAccountsManagement:
             else:
                 print(Log().align(email, "Community error"))
 
+    def set_online_status(self, account: dict):
+        email = account.get("email")
+        userid = account.get("uid")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community().sub_client(self.com_id, userid)
+            if sub_client:
+                try:
+                    sub_client.activity_status("on")
+                    print(Log().align(email, "Online status is set"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
+
 
 class ChatModeration:
     def __init__(self, client, com_id):
@@ -761,19 +789,21 @@ class ChatModeration:
         pool = ThreadPool(40)
         deleted = 0
         next_page = None
+        back = False
         sub_client = Community().sub_client(self.com_id, self.client.userId)
         chat = sub_client.get_chat_thread(chatId=chatid)
         admins = [*chat.coHosts, chat.author.userId]
         if self.client.userId in admins:
-            while deleted <= count:
+            while not back:
                 messages = sub_client.get_chat_messages(chatId=chatid, size=100, pageToken=next_page)
                 if messages.messageId:
                     next_page = messages.nextPageToken
                     for message_id in messages.messageId:
                         if deleted < count:
-                            pool.apply_async(sub_client.delete_message, [chatid, message_id])
+                            pool.apply_async(sub_client.delete_message, [chatid, message_id, False, None])
                             deleted += 1
                         else:
+                            back = True
                             break
                 else:
                     break
@@ -805,3 +835,13 @@ class ChatModeration:
                     data += f"{i.get('name')}\nColor: {i.get('style').get('backgroundColor')}\n"
             settings_file.write(data)
         print(colored(f"Settings saved in {os.path.join(os.getcwd(), 'src', 'chat_settings', f'{chatid}.txt')}", "green"))
+
+    def set_view_mode(self, chatid):
+        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        chat = sub_client.get_chat_thread(chatId=chatid)
+        admins = [*chat.coHosts, chat.author.userId]
+        if self.client.userId in admins:
+            sub_client.edit_chat(chatId=chatid, viewOnly=True)
+            print("Chat mode is set to view")
+        else:
+            print(colored("You don't have co-host/host rights to use this function", "red"))

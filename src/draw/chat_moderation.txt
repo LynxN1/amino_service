@@ -2,6 +2,7 @@
 ||      Menu      ||
 ====================
 ||- b. Back
-||- 1. ClearChatMessages
-||- 2. SaveChatSettings
+||- 1. Clear chat messages
+||- 2. Save chat settings
+||- 3. Set view only mode
 ====================

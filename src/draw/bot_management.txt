@@ -3,13 +3,14 @@
 ====================
 ||- b. Back
 ||- s. Update SIDs
-||- 1. PlayLottery
-||- 2. SendCoins
-||- 3. LikeBlog
+||- 1. Play lottery
+||- 2. Send coins
+||- 3. Like blog
 ||- 4. Join bots to chat
 ||- 5. Remove bots from chat
 ||- 6. Join bots to community
 ||- 7. Send message to chat
 ||- 8. Follow bots to user
 ||- 9. Unfollow bots from user
+||- 10. Set online status
 ====================
