@@ -54,7 +54,7 @@ def set_pool_count():
 
 
 def set_accounts(data):
-    with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w") as accounts_file:
+    with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "a") as accounts_file:
         yaml.dump(data, accounts_file, Dumper=yaml.Dumper)
 
 

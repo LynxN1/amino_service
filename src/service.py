@@ -96,29 +96,28 @@ class Login:
                 if account:
                     if account.get("sid") is None:
                         bad_accounts.append(account)
-                else:
-                    accounts.remove(account)
-            for account in bad_accounts:
-                accounts.remove(account)
             if bad_accounts:
-                print(f"{len(bad_accounts)} bad accounts detected. Starting fix...")
-                pool = Pool(set_pool_count())
-                sid_pool = pool.map(self.login, bad_accounts)
-                for client, account in zip(sid_pool, bad_accounts):
-                    if client:
-                        accounts.append({"email": account.get("email"), "password": account.get("password"), "uid": client.profile.userId, "sid": client.sid})
-                if accounts:
-                    set_accounts(accounts)
+                print(f"{len(bad_accounts)} bad accounts detected.")
+                print("Starting update...")
+                self.update_sid(bad_accounts)
         else:
             print(colored("bots.yaml is empty", "red"))
 
-    def update_sid(self):
-        print("Starting update...")
-        pool = Pool(set_pool_count())
-        sid_pool = pool.map(self.get_sid, get_accounts())
+    def update_sid(self, accounts: list):
+        pool = ThreadPool(set_pool_count())
+        sid_pool = pool.map(self.get_sid, accounts)
         for account in sid_pool:
             if not account:
                 sid_pool.remove(account)
+        all_accounts = get_accounts()
+        for i in get_accounts():
+            if i in accounts:
+                all_accounts.remove(i)
+        if all_accounts:
+            with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w") as file:
+                yaml.dump(all_accounts, file)
+        else:
+            open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w").close()
         set_accounts(sid_pool)
 
     def get_sid(self, account: dict):
@@ -314,8 +313,7 @@ class ServiceApp:
                             single_management.unfollow_all()
                             print("[UnfollowAll]: Finish.")
                         elif choice == "3":
-                            count = input("How many posts do you want to like?: ")
-                            single_management.activity(int(count))
+                            single_management.activity()
                             print("[Activity]: Finish.")
                         elif choice == "4":
                             single_management.follow_all()
@@ -330,8 +328,8 @@ class ServiceApp:
                     while True:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")
+                        pool = Pool(set_pool_count())
                         if choice == "1":
-                            pool = Pool(set_pool_count())
                             result = pool.map(multi_management.play_lottery, get_accounts())
                             count_result = get_count(result)
                             print(f"Accounts: {count_result['accounts']}\nResult: +{count_result['count']} coins")
@@ -339,7 +337,6 @@ class ServiceApp:
                         elif choice == "2":
                             blog_link = input("Blog link: ")
                             object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(set_pool_count())
                             result = pool.map(partial(multi_management.send_coins, object_id), get_accounts())
                             count_result = get_count(result)
                             print(f"Accounts {count_result['accounts']}\nResult: +{count_result['count']} coins")
@@ -347,21 +344,17 @@ class ServiceApp:
                         elif choice == "3":
                             blog_link = input("Blog link: ")
                             object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.like_blog, object_id), get_accounts())
                             print("[LikeBlog]: Finish.")
                         elif choice == "4":
                             object_id = Chats(single_management.client, multi_management.com_id).select()
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.join_bots_to_chat, object_id), get_accounts())
                             print("[JoinBotsToChat]: Finish.")
                         elif choice == "5":
                             object_id = Chats(single_management.client, multi_management.com_id).select()
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.leave_bots_from_chat, object_id), get_accounts())
                         elif choice == "6":
                             object_id = Community().select(single_management.client)
-                            pool = Pool(set_pool_count())
                             invite_link = None
                             if single_management.client.get_community_info(object_id).joinType == 2:
                                 invite_link = input("Enter invite link/code: ")
@@ -370,27 +363,23 @@ class ServiceApp:
                         elif choice == "7":
                             object_id = Chats(single_management.client, multi_management.com_id).select()
                             text = input("Message text: ")
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.send_message, object_id, text), get_accounts())
                             print("[SendMessage]: Finish.")
                         elif choice == "8":
                             user_link = input("Link to user: ")
                             object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.follow, object_id), get_accounts())
                             print("[Follow]: Finish.")
                         elif choice == "9":
                             user_link = input("Link to user: ")
                             object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool = Pool(set_pool_count())
                             pool.map(partial(multi_management.unfollow, object_id), get_accounts())
                             print("[Unfollow]: Finish.")
                         elif choice == "10":
-                            pool = Pool(set_pool_count())
                             pool.map(multi_management.set_online_status, get_accounts())
                             print("[SetOnlineStatus]: Finish.")
                         elif choice == "s":
-                            Login().update_sid()
+                            Login().update_sid(get_accounts())
                             print("[UpdateSIDs]: Finish.")
                         elif choice == "b":
                             break
@@ -483,25 +472,22 @@ class SingleAccountManagement:
             else:
                 break
 
-    def activity(self, count: int):
+    def activity(self):
         print("Activity...")
         comments = get_comments()
         sub_client = Community().sub_client(self.com_id, self.client.userId)
         old_blogs = []
-        liked = 0
-        while liked <= count:
-            recent_blogs = sub_client.get_recent_blogs(start=0, size=100)
-            for blog_id, blog_type in zip(recent_blogs.blog.blogId, recent_blogs.blog.type):
+        while True:
+            recent_blogs = sub_client.get_recent_blogs(start=0, size=20)
+            for blog_id in recent_blogs.blog.blogId:
                 if blog_id not in old_blogs:
                     try:
                         sub_client.like_blog(blogId=blog_id)
-                        liked += 1
                         if comments:
                             sub_client.comment(message=random.choice(comments), blogId=blog_id)
                             time.sleep(2.5)
                     except amino.exceptions.RequestedNoLongerExists:
                         sub_client.like_blog(wikiId=blog_id)
-                        liked += 1
                         if comments:
                             sub_client.comment(message=random.choice(comments), wikiId=blog_id)
                             time.sleep(2.5)
@@ -511,35 +497,46 @@ class SingleAccountManagement:
     def follow_all(self):
         print("Subscribe...")
         sub_client = Community().sub_client(self.com_id, self.client.userId)
+        old = []
+        pool = ThreadPool(50)
         for i in range(0, 20000, 100):
             users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
             if users:
-                try:
-                    sub_client.follow(userId=users)
-                except Exception as e:
-                    print(e)
+                for userid in users:
+                    if userid not in old:
+                        old.append(userid)
+                        try:
+                            pool.apply_async(sub_client.follow, [userid])
+                        except Exception as e:
+                            print(e)
             else:
                 break
         for i in range(0, 20000, 100):
             users = sub_client.get_online_users(start=i, size=100).profile.userId
             if users:
-                try:
-                    sub_client.follow(userId=users)
-                except Exception as e:
-                    print(e)
+                for userid in users:
+                    if userid not in old:
+                        old.append(userid)
+                        try:
+                            pool.apply_async(sub_client.follow, [userid])
+                        except Exception as e:
+                            print(e)
             else:
                 break
-        for i in range(0, 50000, 100):
+        for i in range(0, 20000, 100):
             chats = sub_client.get_public_chat_threads(type="recommended", start=i, size=100).chatId
             if chats:
                 for chatid in chats:
                     for x in range(0, 1000, 100):
                         users = sub_client.get_chat_users(chatId=chatid, start=x, size=100).userId
                         if users:
-                            try:
-                                sub_client.follow(userId=users)
-                            except Exception as e:
-                                print(e)
+                            for userid in users:
+                                if userid not in old:
+                                    old.append(userid)
+                                    try:
+                                        pool.apply_async(sub_client.follow, [userid])
+                                    except Exception as e:
+                                        print(e)
                         else:
                             break
             else:

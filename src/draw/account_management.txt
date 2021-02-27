@@ -4,7 +4,7 @@
 ||- b. Back
 ||- 1. Play quiz
 ||- 2. Unfollow all
-||- 3. Activity
+||- 3. Like recent blogs
 ||- 4. Follow all
 ||- 5. Register account
 ====================
