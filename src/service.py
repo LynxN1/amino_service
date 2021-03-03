@@ -500,33 +500,19 @@ class SingleAccountManagement:
         sub_client = Community().sub_client(self.com_id, self.client.userId)
         old = []
         for i in range(0, 20000, 100):
-            users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
+            recent_users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
+            online_users = sub_client.get_online_users(start=i, size=100).profile.userId
+            users = [*recent_users, *online_users]
             if users:
-                user_ids = []
+                for userid in old:
+                    if userid in users:
+                        users.remove(userid)
                 for userid in users:
-                    if userid not in old:
-                        old.append(userid)
-                        user_ids.append(userid)
-                if user_ids:
-                    try:
-                        sub_client.follow(userId=user_ids)
-                    except Exception as e:
-                        print(e)
-            else:
-                break
-        for i in range(0, 20000, 100):
-            users = sub_client.get_online_users(start=i, size=100).profile.userId
-            if users:
-                user_ids = []
-                for userid in users:
-                    if userid not in old:
-                        old.append(userid)
-                        user_ids.append(userid)
-                if user_ids:
-                    try:
-                        sub_client.follow(userId=user_ids)
-                    except Exception as e:
-                        print(e)
+                    old.append(userid)
+                try:
+                    sub_client.follow(userId=users)
+                except:
+                    pass
             else:
                 break
         for i in range(0, 20000, 100):
@@ -536,16 +522,15 @@ class SingleAccountManagement:
                     for x in range(0, 1000, 100):
                         users = sub_client.get_chat_users(chatId=chatid, start=x, size=100).userId
                         if users:
-                            user_ids = []
+                            for userid in old:
+                                if userid in users:
+                                    users.remove(userid)
                             for userid in users:
-                                if userid not in old:
-                                    old.append(userid)
-                                    user_ids.append(userid)
-                            if user_ids:
-                                try:
-                                    sub_client.follow(userId=user_ids)
-                                except Exception as e:
-                                    print(e)
+                                old.append(userid)
+                            try:
+                                sub_client.follow(userId=users)
+                            except:
+                                pass
                         else:
                             break
             else:
