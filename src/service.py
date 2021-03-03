@@ -104,7 +104,7 @@ class Login:
             print(colored("bots.yaml is empty", "red"))
 
     def update_sid(self, accounts: list):
-        pool = ThreadPool(set_pool_count())
+        pool = Pool(50)
         sid_pool = pool.map(self.get_sid, accounts)
         for account in sid_pool:
             if not account:
@@ -119,6 +119,7 @@ class Login:
         else:
             open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w").close()
         set_accounts(sid_pool)
+        pool.close()
 
     def get_sid(self, account: dict):
         client = self.login(account)
@@ -325,10 +326,10 @@ class ServiceApp:
                             break
                 elif management_choice == "2":
                     Login().check_sid()
+                    pool = Pool(set_pool_count())
                     while True:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")
-                        pool = Pool(set_pool_count())
                         if choice == "1":
                             result = pool.map(multi_management.play_lottery, get_accounts())
                             count_result = get_count(result)
@@ -498,29 +499,34 @@ class SingleAccountManagement:
         print("Subscribe...")
         sub_client = Community().sub_client(self.com_id, self.client.userId)
         old = []
-        pool = ThreadPool(50)
         for i in range(0, 20000, 100):
             users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
             if users:
+                user_ids = []
                 for userid in users:
                     if userid not in old:
                         old.append(userid)
-                        try:
-                            pool.apply_async(sub_client.follow, [userid])
-                        except Exception as e:
-                            print(e)
+                        user_ids.append(userid)
+                if user_ids:
+                    try:
+                        sub_client.follow(userId=user_ids)
+                    except Exception as e:
+                        print(e)
             else:
                 break
         for i in range(0, 20000, 100):
             users = sub_client.get_online_users(start=i, size=100).profile.userId
             if users:
+                user_ids = []
                 for userid in users:
                     if userid not in old:
                         old.append(userid)
-                        try:
-                            pool.apply_async(sub_client.follow, [userid])
-                        except Exception as e:
-                            print(e)
+                        user_ids.append(userid)
+                if user_ids:
+                    try:
+                        sub_client.follow(userId=user_ids)
+                    except Exception as e:
+                        print(e)
             else:
                 break
         for i in range(0, 20000, 100):
@@ -530,13 +536,16 @@ class SingleAccountManagement:
                     for x in range(0, 1000, 100):
                         users = sub_client.get_chat_users(chatId=chatid, start=x, size=100).userId
                         if users:
+                            user_ids = []
                             for userid in users:
                                 if userid not in old:
                                     old.append(userid)
-                                    try:
-                                        pool.apply_async(sub_client.follow, [userid])
-                                    except Exception as e:
-                                        print(e)
+                                    user_ids.append(userid)
+                            if user_ids:
+                                try:
+                                    sub_client.follow(userId=user_ids)
+                                except Exception as e:
+                                    print(e)
                         else:
                             break
             else:
