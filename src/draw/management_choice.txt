@@ -1,6 +1,7 @@
 =======================
 || Select management ||
 =======================
+||- 0. Convert accounts from bots.txt to bots.yaml
 ||- 1. Main Account
 ||- 2. Bots
 ||- 3. Chat Moderation

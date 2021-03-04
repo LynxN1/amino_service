@@ -5,14 +5,14 @@ import random
 import time
 import traceback
 
+from sys import platform
 from functools import partial
 from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
-from .config import get_accounts, get_devices, get_count, \
-    get_reg_devices, get_comments, set_pool_count, \
-    set_accounts, get_auth_data, set_auth_data
+from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, \
+    get_auth_data, set_auth_data, converter
 
 
 class Login:
@@ -104,8 +104,11 @@ class Login:
             print(colored("bots.yaml is empty", "red"))
 
     def update_sid(self, accounts: list):
-        pool = Pool(50)
-        sid_pool = pool.map(self.get_sid, accounts)
+        if platform == "linux":
+            sid_pool = map(self.get_sid, accounts)
+        else:
+            pool = Pool(50)
+            sid_pool = pool.map(self.get_sid, accounts)
         for account in sid_pool:
             if not account:
                 sid_pool.remove(account)
@@ -119,7 +122,6 @@ class Login:
         else:
             open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w").close()
         set_accounts(sid_pool)
-        pool.close()
 
     def get_sid(self, account: dict):
         client = self.login(account)
@@ -292,6 +294,13 @@ class Log:
         return text
 
 
+class MobileMap:
+    @staticmethod
+    def map(function, iterable):
+        result = map(function, iterable)
+        return result
+
+
 class ServiceApp:
     def __init__(self):
         single_management = SingleAccountManagement()
@@ -326,7 +335,10 @@ class ServiceApp:
                             break
                 elif management_choice == "2":
                     Login().check_sid()
-                    pool = Pool(set_pool_count())
+                    if platform == "linux":
+                        pool = MobileMap()
+                    else:
+                        pool = Pool(set_pool_count())
                     while True:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")
@@ -403,6 +415,8 @@ class ServiceApp:
                             print("[SetViewMode]: Finish.")
                         elif choice == "b":
                             break
+                elif management_choice == "0":
+                    converter()
             except Exception as e:
                 print(traceback.format_exc())
                 print(colored(str(e), "red"))
