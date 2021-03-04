@@ -2,15 +2,17 @@ import os
 import json
 import requests
 
-from ctypes import windll
+from sys import platform
 from colorama import init
 from termcolor import colored
 from src.service import ServiceApp
 
 
 if __name__ == '__main__':
+    if platform != "linux":
+        from ctypes import windll
+        windll.kernel32.SetConsoleTitleW("Amino Service")
     os.system('cls' if os.name == 'nt' else 'clear')
-    windll.kernel32.SetConsoleTitleW("Amino Service")
     init()
 
     with open("version.json") as info_file:
