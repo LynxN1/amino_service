@@ -5,29 +5,25 @@ import random
 import time
 import traceback
 
-from sys import platform
 from functools import partial
-from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
-from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, \
-    get_auth_data, set_auth_data, converter
+from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, get_auth_data, set_auth_data, converter
 
 
 class Login:
-    def __init__(self):
-        self.client = amino.Client()
-
-    def login_sid(self, account: dict):
+    @staticmethod
+    def login_sid(account: dict):
+        client = amino.Client()
         email = account.get("email")
         sid = account.get("sid")
         while True:
             try:
-                self.client.login_sid(sid)
-                return self.client
+                client.login_sid(sid)
+                return client
             except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+                client.device_id = client.headers.device_id = random.choice(get_devices()).replace("\n", "")
             except amino.exceptions.FailedLogin:
                 print(Log().align(email, "Failed login"))
                 return False
@@ -53,15 +49,17 @@ class Login:
                 print(Log().align(email, str(e)))
                 return False
 
-    def login(self, account: dict):
+    @staticmethod
+    def login(account: dict):
+        client = amino.Client()
         email = account.get("email")
         password = account.get("password")
         while True:
             try:
-                self.client.login(email, password)
-                return self.client
+                client.login(email, password)
+                return client
             except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = random.choice(get_devices()).replace("\n", "")
+                client.device_id = client.headers.device_id = random.choice(get_devices()).replace("\n", "")
             except amino.exceptions.FailedLogin:
                 print(Log().align(email, "Failed login"))
                 return False
@@ -104,14 +102,12 @@ class Login:
             print(colored("bots.yaml is empty", "red"))
 
     def update_sid(self, accounts: list):
-        if platform == "linux":
-            sid_pool = map(self.get_sid, accounts)
-        else:
-            pool = Pool(50)
-            sid_pool = pool.map(self.get_sid, accounts)
+        pool = ThreadPool(set_pool_count())
+        sid_pool = pool.map(self.get_sid, accounts)
+        correct_accounts = []
         for account in sid_pool:
-            if not account:
-                sid_pool.remove(account)
+            if account:
+                correct_accounts.append(account)
         all_accounts = get_accounts()
         for i in get_accounts():
             if i in accounts:
@@ -121,7 +117,7 @@ class Login:
                 yaml.dump(all_accounts, file)
         else:
             open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w").close()
-        set_accounts(sid_pool)
+        set_accounts(correct_accounts)
 
     def get_sid(self, account: dict):
         client = self.login(account)
@@ -140,17 +136,16 @@ class Register:
         while len(self.password) < 6:
             print(colored("Password must be at least 6 characters long", "red"))
             self.password = input("Set a password for all accounts: ")
-        self.current_device = None
         self.code = None
 
     def run(self):
         if get_reg_devices():
             for device in get_reg_devices():
-                self.current_device = device.replace("\n", "")
+                self.client.device_id = self.client.headers.device_id = device.replace("\n", "")
                 for _ in range(3):
                     self.email = input("Email: ")
                     if self.register():
-                        self.client.request_verify_code(deviceId=self.current_device, email=self.email)
+                        self.client.request_verify_code(email=self.email)
                         if self.verify():
                             if self.login():
                                 if self.activate():
@@ -170,8 +165,7 @@ class Register:
         while True:
             try:
                 nick = ''.join(random.choice(ascii_letters) for _ in range(random.randint(2, 5)))
-                self.client.register(nickname=nick, email=self.email, password=str(self.password),
-                                     deviceId=self.current_device)
+                self.client.register(nickname=nick, email=self.email, password=str(self.password))
                 return True
             except amino.exceptions.AccountLimitReached:
                 print(colored("AccountLimitReached", "red"))
@@ -198,7 +192,7 @@ class Register:
         while True:
             self.code = input("Code: ")
             try:
-                self.client.verify(deviceId=self.current_device, email=self.email, code=self.code)
+                self.client.verify(email=self.email, code=self.code)
                 return True
             except amino.exceptions.IncorrectVerificationCode:
                 print(colored("IncorrectVerificationCode", "red"))
@@ -233,7 +227,7 @@ class Register:
 
 class Community:
     @staticmethod
-    def select(client):
+    def select(client: amino.Client):
         sub_clients = client.sub_clients(start=0, size=100)
         print("Select the community:")
         for x, name in enumerate(sub_clients.name, 1):
@@ -246,9 +240,9 @@ class Community:
                 print(colored("Invalid community number", "red"))
 
     @staticmethod
-    def sub_client(com_id: str, userid: str):
+    def sub_client(com_id: str, client: amino.Client):
         try:
-            sub_client = amino.SubClient(comId=com_id, userId=userid)
+            sub_client = amino.SubClient(comId=com_id, client=client)
             return sub_client
         except amino.exceptions.UserNotMemberOfCommunity:
             print("UserNotMemberOfCommunity")
@@ -262,8 +256,8 @@ class Community:
 
 
 class Chats:
-    def __init__(self, client, com_id: str):
-        self.sub_client = Community().sub_client(com_id, client.userId)
+    def __init__(self, client: amino.Client, com_id: str):
+        self.sub_client = Community().sub_client(com_id, client)
 
     def select(self):
         get_chats = self.sub_client.get_chat_threads(start=0, size=100)
@@ -292,13 +286,6 @@ class Log:
             text += " "
         text += f"]: {action}"
         return text
-
-
-class MobileMap:
-    @staticmethod
-    def map(function, iterable):
-        result = map(function, iterable)
-        return result
 
 
 class ServiceApp:
@@ -335,10 +322,7 @@ class ServiceApp:
                             break
                 elif management_choice == "2":
                     Login().check_sid()
-                    if platform == "linux":
-                        pool = MobileMap()
-                    else:
-                        pool = Pool(set_pool_count())
+                    pool = ThreadPool(set_pool_count())
                     while True:
                         print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")
@@ -444,7 +428,7 @@ class SingleAccountManagement:
         questions_list = []
         answers_list = []
 
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         quiz_info = sub_client.get_blog_info(quizId=object_id).json
         questions = quiz_info["blog"]["quizQuestionList"]
         total_questions = quiz_info["blog"]["extensions"]["quizTotalQuestionCount"]
@@ -472,15 +456,16 @@ class SingleAccountManagement:
 
     def unfollow_all(self):
         print("Unfollow all...")
-        thread_pool = ThreadPool(40)
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        thread_pool = ThreadPool(50)
+        sub_client = Community().sub_client(self.com_id, self.client)
         while True:
             following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
             if following_count > 0:
-                for i in range(0, 1000, 100):
+                for i in range(0, following_count, 100):
                     followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
-                    if followings.userId:
-                        for user_id in followings.userId:
+                    users = followings.userId
+                    if users:
+                        for user_id in users:
                             thread_pool.apply(sub_client.unfollow, [user_id])
                     else:
                         break
@@ -490,7 +475,7 @@ class SingleAccountManagement:
     def activity(self):
         print("Activity...")
         comments = get_comments()
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         old_blogs = []
         while True:
             recent_blogs = sub_client.get_recent_blogs(start=0, size=20)
@@ -511,7 +496,7 @@ class SingleAccountManagement:
 
     def follow_all(self):
         print("Subscribe...")
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         old = []
         for i in range(0, 20000, 100):
             recent_users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
@@ -557,10 +542,9 @@ class MultiAccountsManagement:
 
     def play_lottery(self, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     play = sub_client.lottery()
@@ -580,10 +564,9 @@ class MultiAccountsManagement:
 
     def send_coins(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     coins = int(client.get_wallet_info().totalCoins)
@@ -608,10 +591,9 @@ class MultiAccountsManagement:
 
     def like_blog(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.like_blog(blogId=object_id)
@@ -630,10 +612,9 @@ class MultiAccountsManagement:
 
     def join_bots_to_chat(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.join_chat(chatId=object_id)
@@ -651,10 +632,9 @@ class MultiAccountsManagement:
 
     def leave_bots_from_chat(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.leave_chat(chatId=object_id)
@@ -695,10 +675,9 @@ class MultiAccountsManagement:
 
     def send_message(self, object_id, text, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.send_message(chatId=object_id, message=text)
@@ -720,10 +699,9 @@ class MultiAccountsManagement:
 
     def follow(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.follow(userId=object_id)
@@ -732,8 +710,6 @@ class MultiAccountsManagement:
                     print(Log().align(email, "You are banned"))
                 except amino.exceptions.AccessDenied:
                     print(Log().align(email, "Access denied"))
-                except amino.exceptions.BlockedByUser:
-                    print(Log().align(email, "You are blocked by this user"))
                 except amino.exceptions.InvalidSession:
                     print(Log().align(email, "SID update required..."))
                 except Exception as e:
@@ -743,10 +719,9 @@ class MultiAccountsManagement:
 
     def unfollow(self, object_id, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.unfollow(userId=object_id)
@@ -755,8 +730,6 @@ class MultiAccountsManagement:
                     print(Log().align(email, "You are banned"))
                 except amino.exceptions.AccessDenied:
                     print(Log().align(email, "Access denied"))
-                except amino.exceptions.BlockedByUser:
-                    print(Log().align(email, "You are blocked by this user"))
                 except amino.exceptions.InvalidSession:
                     print(Log().align(email, "SID update required..."))
                 except Exception as e:
@@ -766,10 +739,9 @@ class MultiAccountsManagement:
 
     def set_online_status(self, account: dict):
         email = account.get("email")
-        userid = account.get("uid")
         client = Login().login_sid(account)
         if client:
-            sub_client = Community().sub_client(self.com_id, userid)
+            sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
                     sub_client.activity_status("on")
@@ -791,11 +763,11 @@ class ChatModeration:
 
     def clear_chat(self, chatid, count):
         print("Clearing chat...")
-        pool = ThreadPool(40)
+        pool = ThreadPool(50)
         deleted = 0
         next_page = None
         back = False
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         chat = sub_client.get_chat_thread(chatId=chatid)
         admins = [*chat.coHosts, chat.author.userId]
         if self.client.userId in admins:
@@ -820,7 +792,7 @@ class ChatModeration:
             pass
         else:
             os.mkdir(os.path.join(os.getcwd(), "src", "chat_settings"))
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         with open(os.path.join(os.getcwd(), "src", "chat_settings", f"{chatid}.txt"), "w", encoding="utf-8") as settings_file:
             chat = sub_client.get_chat_thread(chatId=chatid)
             data = "====================Title====================\n" \
@@ -842,7 +814,7 @@ class ChatModeration:
         print(colored(f"Settings saved in {os.path.join(os.getcwd(), 'src', 'chat_settings', f'{chatid}.txt')}", "green"))
 
     def set_view_mode(self, chatid):
-        sub_client = Community().sub_client(self.com_id, self.client.userId)
+        sub_client = Community().sub_client(self.com_id, self.client)
         chat = sub_client.get_chat_thread(chatId=chatid)
         admins = [*chat.coHosts, chat.author.userId]
         if self.client.userId in admins:

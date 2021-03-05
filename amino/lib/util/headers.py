@@ -1,24 +1,26 @@
-from amino.lib.util import device
-
-sid = None
-
-
 class Headers:
-    def __init__(self, device = device.DeviceGenerator(), data = None, type = None):
+    def __init__(self, device_info):
+        self.device_id = device_info.device_id
+        self.device_id_sig = device_info.device_id_sig
+        self.user_agent = device_info.user_agent
+        self.sid = None
+
+    def headers(self, data=None, content_type=None):
         headers = {
-            "NDCDEVICEID": device.device_id,
-            "NDC-MSG-SIG": device.device_id_sig,
+            "NDCDEVICEID": self.device_id,
+            "NDC-MSG-SIG": self.device_id_sig,
             "Accept-Language": "en-US",
-            "Content-Type": "application/accounts; charset=utf-8",
-            "User-Agent": device.user_agent,
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": self.user_agent,
             "Host": "service.narvii.com",
             "Accept-Encoding": "gzip",
             "Connection": "Keep-Alive"
         }
 
-        if data: headers["Content-Length"] = str(len(data))
-        if sid: headers["NDCAUTH"] = f"sid={sid}"
-        if type: headers["Content-Type"] = type
-        self.headers = headers
-
-
+        if data:
+            headers["Content-Length"] = str(len(data))
+        if self.sid:
+            headers["NDCAUTH"] = f"sid={self.sid}"
+        if content_type:
+            headers["Content-Type"] = content_type
+        return headers

@@ -196,6 +196,15 @@ class UserNotMemberOfCommunity(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class ActivateAccount(Exception):
+    """
+    - **API Code** : 238
+    - **API Message** : Please activate your account first. Check your email, including your spam folder.
+    - **API String** : ``Unknown String``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class CantLeaveCommunity(Exception):
     """
     - **API Code** : 239
@@ -315,7 +324,7 @@ class InvalidVoiceNote(Exception):
 
 class RequestedNoLongerExists(Exception):
     """
-    - **API Code** : 400, 500, 700, 1600
+    - **API Code** : 500, 700, 1600
     - **API Message** : Sorry, the requested data no longer exists. Try refreshing the view.
     - **API String** : ``Unknown String``
     """
@@ -335,15 +344,6 @@ class InsufficientLevel(Exception):
     """
     - **API Code** : 551
     - **API Message** : This post type is restricted to members with a level ``X`` ranking and above.
-    - **API String** : ``Unknown String``
-    """
-    def __init__(*args, **kwargs):
-        Exception.__init__(*args, **kwargs)
-
-class BlockedByUser(Exception):
-    """
-    - **API Code** : 600
-    - **API Message** : Access Denied! You are blocked by this user.
     - **API String** : ``Unknown String``
     """
     def __init__(*args, **kwargs):
@@ -403,6 +403,24 @@ class CommunityDeleted(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class DuplicatePollOption(Exception):
+    """
+    - **API Code** : 1501
+    - **API Message** : Sorry, you have duplicate poll options.
+    - **API String** : ``Unknown String``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class ReachedMaxPollOptions(Exception):
+    """
+    - **API Code** : 1507
+    - **API Message** : Sorry, you can only join or add up to 5 of your items per poll.
+    - **API String** : ``Unknown String``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class ChatFull(Exception):
     """
     - **API Code** : 1605
@@ -451,7 +469,7 @@ class API_ERR_CHAT_VVCHAT_NO_MORE_REPUTATIONS(Exception):
 class MemberKickedByOrganizer(Exception):
     """
     - **API Code** : 1637
-    - **API Message** : ``This member was previously kicked by the organizer and cannot be reinvited.``
+    - **API Message** : This member was previously kicked by the organizer and cannot be reinvited.
     - **API String** : ``Unknown String``
     """
     def __init__(*args, **kwargs):
@@ -470,6 +488,15 @@ class ChatViewOnly(Exception):
     """
     - **API Code** : 1663
     - **API Message** : ``Unknown Message``
+    - **API String** : ``Unknown String``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class InviteCodeNotFound(Exception):
+    """
+    - **API Code** : 1900
+    - **API Message** : Sorry, the requested data no longer exists. Try refreshing the view.
     - **API String** : ``Unknown String``
     """
     def __init__(*args, **kwargs):
@@ -732,6 +759,14 @@ class ReasonNeeded(Exception):
         Exception.__init__(*args, **kwargs)
 
 
+class LibraryUpdateAvailable(Exception):
+    """
+    Raised when a new library update is available.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+
 def CheckException(data):
     api_code = data["api:statuscode"]
 
@@ -754,29 +789,31 @@ def CheckException(data):
     elif api_code == 225: raise UserUnavailable(data)
     elif api_code == 229: raise YouAreBanned(data)
     elif api_code == 230: raise UserNotMemberOfCommunity(data)
+    elif api_code == 238: raise ActivateAccount(data)
     elif api_code == 239: raise CantLeaveCommunity(data)
     elif api_code == 240: raise ReachedTitleLength(data)
     elif api_code == 246: raise AccountDeleted(data)
     elif api_code == 251: raise API_ERR_EMAIL_NO_PASSWORD(data)
     elif api_code == 257: raise API_ERR_COMMUNITY_USER_CREATED_COMMUNITIES_VERIFY(data)
     elif api_code == 262: raise ReachedMaxTitles(data)
-    elif api_code == 270: raise VerificationRequired(data["url"])
+    elif api_code == 270: raise VerificationRequired(data)
     elif api_code == 271: raise API_ERR_INVALID_AUTH_NEW_DEVICE_LINK(data)
     elif api_code == 291: raise CommandCooldown(data)
     elif api_code == 293: raise UserBannedByTeamAmino(data)
     elif api_code == 300: raise BadImage(data)
     elif api_code == 313: raise InvalidThemepack(data)
     elif api_code == 314: raise InvalidVoiceNote(data)
-    elif api_code == 400 or api_code == 500 or api_code == 700 or api_code == 1600: raise RequestedNoLongerExists(data)
+    elif api_code == 500 or api_code == 700 or api_code == 1600: raise RequestedNoLongerExists(data)
     elif api_code == 503: raise PageRepostedTooRecently(data)
     elif api_code == 551: raise InsufficientLevel(data)
-    elif api_code == 600: raise BlockedByUser(data)
     elif api_code == 702: raise WallCommentingDisabled(data)
     elif api_code == 801: raise CommunityNoLongerExists(data)
     elif api_code == 802: raise InvalidCodeOrLink(data)
     elif api_code == 805: raise CommunityNameAlreadyTaken(data)
     elif api_code == 806: raise CommunityCreateLimitReached(data)
     elif api_code == 833: raise CommunityDeleted(data)
+    elif api_code == 1501: raise DuplicatePollOption(data)
+    elif api_code == 1507: raise ReachedMaxPollOptions(data)
     elif api_code == 1605: raise ChatFull(data)
     elif api_code == 1611: raise ChatInvitesDisabled(data)
     elif api_code == 1612: raise RemovedFromChat(data)
@@ -785,6 +822,7 @@ def CheckException(data):
     elif api_code == 1637: raise MemberKickedByOrganizer(data)
     elif api_code == 1661: raise LevelFiveRequiredToEnableProps(data)
     elif api_code == 1663: raise ChatViewOnly(data)
+    elif api_code == 1900: raise InviteCodeNotFound(data)
     elif api_code == 2001: raise AlreadyRequestedJoinCommunity(data)
     elif api_code == 2501: raise API_ERR_PUSH_SERVER_LIMITATION_APART(data)
     elif api_code == 2502: raise API_ERR_PUSH_SERVER_LIMITATION_COUNT(data)

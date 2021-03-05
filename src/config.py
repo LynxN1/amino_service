@@ -42,15 +42,8 @@ def get_auth_data():
 
 
 def set_pool_count():
-    if len(get_accounts()) >= 10:
-        while True:
-            processes = input("Set the number of threads(1-50): ")
-            if 50 >= int(processes) >= 1:
-                return int(processes)
-            else:
-                print(colored("The number of threads must be from 1 to 50", "red"))
-    else:
-        return len(get_accounts()) if len(get_accounts()) <= 10 else 10
+    pool_count = len(get_accounts()) if len(get_accounts()) <= 50 else 50
+    return pool_count
 
 
 def set_accounts(data):
