@@ -280,7 +280,7 @@ class Chats:
 class Log:
     @staticmethod
     def align(text: str, action: str):
-        spaces = 30 - len(text) if 30 - len(text) >= 0 else len(text)
+        spaces = 30 - len(text)
         text = f"[{text}"
         for _ in range(spaces):
             text += " "

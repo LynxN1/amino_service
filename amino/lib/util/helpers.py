@@ -13,7 +13,9 @@ def decode_base64(data: str):
 
 def sid_to_uid(SID: str):
     try:
-        return json.loads(decode_base64(SID))["2"]
+        decoded_uid = decode_base64(SID)
+        uid = decoded_uid.split('"2": ')[1][:38].replace("\"", "")
+        return uid
     except json.decoder.JSONDecodeError:
         return sid_to_uid_2(SID)
 

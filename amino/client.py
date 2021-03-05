@@ -424,8 +424,7 @@ class Client:
             return json.loads(response.text)["mediaValue"]
 
     def get_eventlog(self):
-        response = get(f"{self.api}/g/s/eventlog/profile?language=en", headers=self.headers.headers(),
-                       )
+        response = get(f"{self.api}/g/s/eventlog/profile?language=en", headers=self.headers.headers())
         if response.status_code != 200:
             return exceptions.CheckException(json.loads(response.text))
         else:
