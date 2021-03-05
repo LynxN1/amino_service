@@ -1,8 +1,7 @@
 import json
 import os
-import yaml
 
-from termcolor import colored
+import yaml
 
 
 def get_accounts():
