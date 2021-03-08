@@ -13,4 +13,5 @@
 ||- 8. Follow bots to user
 ||- 9. Unfollow bots from user
 ||- 10. Set online status
+||- 11. Change nickname
 ====================

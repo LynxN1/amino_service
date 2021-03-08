@@ -3,13 +3,13 @@ import amino
 import yaml
 import random
 import time
-import traceback
 
 from functools import partial
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
 from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, get_auth_data, set_auth_data, converter
+from .nick_gen import UsernameGenerator
 
 
 class Login:
@@ -85,7 +85,7 @@ class Login:
                 print(Log().align(email, str(e)))
                 return False
 
-    def check_sid(self):
+    def check_sid(self, pool: ThreadPool):
         print("Checking accounts...")
         accounts = get_accounts()
         bad_accounts = []
@@ -97,12 +97,11 @@ class Login:
             if bad_accounts:
                 print(f"{len(bad_accounts)} bad accounts detected.")
                 print("Starting update...")
-                self.update_sid(bad_accounts)
+                self.update_sid(bad_accounts, pool)
         else:
             print(colored("bots.yaml is empty", "red"))
 
-    def update_sid(self, accounts: list):
-        pool = ThreadPool(set_pool_count())
+    def update_sid(self, accounts: list, pool: ThreadPool):
         sid_pool = pool.map(self.get_sid, accounts)
         correct_accounts = []
         for account in sid_pool:
@@ -290,139 +289,157 @@ class Log:
 
 class ServiceApp:
     def __init__(self):
-        single_management = SingleAccountManagement()
-        multi_management = MultiAccountsManagement(single_management.com_id)
-        chat_moderation = ChatModeration(single_management.client, single_management.com_id)
-        while True:
-            try:
-                print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
-                management_choice = input("Enter the number >>> ")
-                if management_choice == "1":
-                    while True:
-                        print(colored(open("src/draw/account_management.txt", "r").read(), "cyan"))
-                        choice = input("Enter the number >>> ")
-                        if choice == "1":
-                            quiz_link = input("Quiz link: ")
-                            object_id = single_management.client.get_from_code(str(quiz_link.split('/')[-1])).objectId
-                            single_management.play_quiz(object_id)
-                            print("[PlayQuiz]: Finish.")
-                        elif choice == "2":
-                            single_management.unfollow_all()
-                            print("[UnfollowAll]: Finish.")
-                        elif choice == "3":
-                            single_management.activity()
-                            print("[Activity]: Finish.")
-                        elif choice == "4":
-                            single_management.follow_all()
-                            print("[FollowAll]: Finish.")
-                        elif choice == "5":
-                            Register().run()
-                            print("[Register]: Finish.")
-                        elif choice == "b":
-                            break
-                elif management_choice == "2":
-                    Login().check_sid()
-                    pool = ThreadPool(set_pool_count())
-                    while True:
-                        print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
-                        choice = input("Enter the number >>> ")
-                        if choice == "1":
-                            result = pool.map(multi_management.play_lottery, get_accounts())
-                            count_result = get_count(result)
-                            print(f"Accounts: {count_result['accounts']}\nResult: +{count_result['count']} coins")
-                            print("[PlayLottery]: Finish.")
-                        elif choice == "2":
-                            blog_link = input("Blog link: ")
-                            object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            result = pool.map(partial(multi_management.send_coins, object_id), get_accounts())
-                            count_result = get_count(result)
-                            print(f"Accounts {count_result['accounts']}\nResult: +{count_result['count']} coins")
-                            print("[SendCoins]: Finish.")
-                        elif choice == "3":
-                            blog_link = input("Blog link: ")
-                            object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
-                            pool.map(partial(multi_management.like_blog, object_id), get_accounts())
-                            print("[LikeBlog]: Finish.")
-                        elif choice == "4":
-                            object_id = Chats(single_management.client, multi_management.com_id).select()
-                            pool.map(partial(multi_management.join_bots_to_chat, object_id), get_accounts())
-                            print("[JoinBotsToChat]: Finish.")
-                        elif choice == "5":
-                            object_id = Chats(single_management.client, multi_management.com_id).select()
-                            pool.map(partial(multi_management.leave_bots_from_chat, object_id), get_accounts())
-                        elif choice == "6":
-                            object_id = Community().select(single_management.client)
-                            invite_link = None
-                            if single_management.client.get_community_info(object_id).joinType == 2:
-                                invite_link = input("Enter invite link/code: ")
-                            pool.map(partial(multi_management.join_bots_to_community, invite_link), get_accounts())
-                            print("[JoinBotsToCommunity]: Finish.")
-                        elif choice == "7":
-                            object_id = Chats(single_management.client, multi_management.com_id).select()
-                            text = input("Message text: ")
-                            pool.map(partial(multi_management.send_message, object_id, text), get_accounts())
-                            print("[SendMessage]: Finish.")
-                        elif choice == "8":
-                            user_link = input("Link to user: ")
-                            object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool.map(partial(multi_management.follow, object_id), get_accounts())
-                            print("[Follow]: Finish.")
-                        elif choice == "9":
-                            user_link = input("Link to user: ")
-                            object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
-                            pool.map(partial(multi_management.unfollow, object_id), get_accounts())
-                            print("[Unfollow]: Finish.")
-                        elif choice == "10":
-                            pool.map(multi_management.set_online_status, get_accounts())
-                            print("[SetOnlineStatus]: Finish.")
-                        elif choice == "s":
-                            Login().update_sid(get_accounts())
-                            print("[UpdateSIDs]: Finish.")
-                        elif choice == "b":
-                            break
-                elif management_choice == "3":
-                    while True:
-                        print(colored(open("src/draw/chat_moderation.txt", "r").read(), "cyan"))
-                        choice = input("Enter the number >>> ")
-                        if choice == "1":
-                            object_id = Chats(single_management.client, single_management.com_id).select()
-                            count = input("Number of messages: ")
-                            chat_moderation.clear_chat(object_id, int(count))
-                            print("[ClearChat]: Finish.")
-                        elif choice == "2":
-                            object_id = Chats(single_management.client, single_management.com_id).select()
-                            chat_moderation.save_chat_settings(object_id)
-                            print("[SaveChatSettings]: Finish.")
-                        elif choice == "3":
-                            object_id = Chats(single_management.client, single_management.com_id).select()
-                            chat_moderation.set_view_mode(object_id)
-                            print("[SetViewMode]: Finish.")
-                        elif choice == "b":
-                            break
-                elif management_choice == "0":
-                    converter()
-            except Exception as e:
-                print(traceback.format_exc())
-                print(colored(str(e), "red"))
+        single_management = SingleAccountManagement(get_auth_data())
+        single_management.login()
+        if single_management.client:
+            multi_management = MultiAccountsManagement(single_management.com_id)
+            chat_moderation = ChatModeration(single_management.client, single_management.com_id)
+            while True:
+                try:
+                    print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
+                    management_choice = input("Enter the number >>> ")
+                    if management_choice == "1":
+                        while True:
+                            print(colored(open("src/draw/account_management.txt", "r").read(), "cyan"))
+                            choice = input("Enter the number >>> ")
+                            if choice == "1":
+                                quiz_link = input("Quiz link: ")
+                                object_id = single_management.client.get_from_code(str(quiz_link.split('/')[-1])).objectId
+                                single_management.play_quiz(object_id)
+                                print("[PlayQuiz]: Finish.")
+                            elif choice == "2":
+                                single_management.unfollow_all()
+                                print("[UnfollowAll]: Finish.")
+                            elif choice == "3":
+                                single_management.activity()
+                                print("[Activity]: Finish.")
+                            elif choice == "4":
+                                single_management.follow_all()
+                                print("[FollowAll]: Finish.")
+                            elif choice == "5":
+                                Register().run()
+                                print("[Register]: Finish.")
+                            elif choice == "b":
+                                break
+                    elif management_choice == "2":
+                        pool = ThreadPool(set_pool_count())
+                        Login().check_sid(pool)
+                        while True:
+                            print(colored(open("src/draw/bot_management.txt", "r").read(), "cyan"))
+                            choice = input("Enter the number >>> ")
+                            if choice == "1":
+                                result = pool.map(multi_management.play_lottery, get_accounts())
+                                count_result = get_count(result)
+                                print(f"Accounts: {count_result['accounts']}\nResult: +{count_result['count']} coins")
+                                print("[PlayLottery]: Finish.")
+                            elif choice == "2":
+                                blog_link = input("Blog link: ")
+                                object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                                result = pool.map(partial(multi_management.send_coins, object_id), get_accounts())
+                                count_result = get_count(result)
+                                print(f"Accounts {count_result['accounts']}\nResult: +{count_result['count']} coins")
+                                print("[SendCoins]: Finish.")
+                            elif choice == "3":
+                                blog_link = input("Blog link: ")
+                                object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                                pool.map(partial(multi_management.like_blog, object_id), get_accounts())
+                                print("[LikeBlog]: Finish.")
+                            elif choice == "4":
+                                object_id = Chats(single_management.client, multi_management.com_id).select()
+                                pool.map(partial(multi_management.join_bots_to_chat, object_id), get_accounts())
+                                print("[JoinBotsToChat]: Finish.")
+                            elif choice == "5":
+                                object_id = Chats(single_management.client, multi_management.com_id).select()
+                                pool.map(partial(multi_management.leave_bots_from_chat, object_id), get_accounts())
+                            elif choice == "6":
+                                object_id = Community().select(single_management.client)
+                                invite_link = None
+                                if single_management.client.get_community_info(object_id).joinType == 2:
+                                    invite_link = input("Enter invite link/code: ")
+                                pool.map(partial(multi_management.join_bots_to_community, invite_link), get_accounts())
+                                print("[JoinBotsToCommunity]: Finish.")
+                            elif choice == "7":
+                                object_id = Chats(single_management.client, multi_management.com_id).select()
+                                text = input("Message text: ")
+                                pool.map(partial(multi_management.send_message, object_id, text), get_accounts())
+                                print("[SendMessage]: Finish.")
+                            elif choice == "8":
+                                user_link = input("Link to user: ")
+                                object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                                pool.map(partial(multi_management.follow, object_id), get_accounts())
+                                print("[Follow]: Finish.")
+                            elif choice == "9":
+                                user_link = input("Link to user: ")
+                                object_id = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                                pool.map(partial(multi_management.unfollow, object_id), get_accounts())
+                                print("[Unfollow]: Finish.")
+                            elif choice == "10":
+                                pool.map(multi_management.set_online_status, get_accounts())
+                                print("[SetOnlineStatus]: Finish.")
+                            elif choice == "11":
+                                print("1 - Random nick")
+                                print("2 - Set custom nick")
+                                mode = input("Select mode: ")
+                                if mode == "1":
+                                    max_length = int(input("Max nick length: "))
+                                    pool.map(partial(multi_management.change_nick_random, max_length, None), get_accounts())
+                                else:
+                                    nick = input("Enter nick: ")
+                                    pool.map(partial(multi_management.change_nick_random, None, nick), get_accounts())
+                                print("[ChangeNickname]: Finish.")
+                            elif choice == "s":
+                                Login().update_sid(get_accounts(), pool)
+                                print("[UpdateSIDs]: Finish.")
+                            elif choice == "b":
+                                break
+                    elif management_choice == "3":
+                        while True:
+                            print(colored(open("src/draw/chat_moderation.txt", "r").read(), "cyan"))
+                            choice = input("Enter the number >>> ")
+                            if choice == "1":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                count = input("Number of messages: ")
+                                chat_moderation.clear_chat(object_id, int(count))
+                                print("[ClearChat]: Finish.")
+                            elif choice == "2":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                chat_moderation.save_chat_settings(object_id)
+                                print("[SaveChatSettings]: Finish.")
+                            elif choice == "3":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                chat_moderation.set_view_mode(object_id)
+                                print("[SetViewMode]: Finish.")
+                            elif choice == "b":
+                                break
+                    elif management_choice == "0":
+                        converter()
+                except Exception as e:
+                    print(colored(str(e), "red"))
+        else:
+            exit(0)
 
 
 class SingleAccountManagement:
-    def __init__(self):
-        auth_data = get_auth_data()
-        if auth_data:
-            self.client = Login().login(get_auth_data())
+    def __init__(self, auth_data):
+        self.auth_data = auth_data
+        self.client = None
+        self.com_id = None
+
+    def login(self):
+        if self.auth_data:
+            self.client = Login().login(self.auth_data)
         else:
-            while True:
-                email = input("Email: ")
-                password = input("Password: ")
-                self.client = Login().login({"email": email, "password": password})
-                if self.client is False:
-                    print(colored("Failed login", "red"))
-                else:
-                    set_auth_data({"email": email, "password": password})
-                    break
-        print("Login was successful!")
-        self.com_id = Community().select(self.client)
+            email = input("Email: ")
+            password = input("Password: ")
+            self.client = Login().login({"email": email, "password": password})
+            set_auth_data({"email": email, "password": password})
+        if self.client:
+            self.com_id = Community().select(self.client)
+            print("Login was successful!")
+            return True
+        else:
+            print(colored("Failed login", "red"))
+            return False
 
     def play_quiz(self, object_id: str):
         questions_list = []
@@ -478,38 +495,41 @@ class SingleAccountManagement:
         sub_client = Community().sub_client(self.com_id, self.client)
         old_blogs = []
         while True:
-            recent_blogs = sub_client.get_recent_blogs(start=0, size=20)
-            for blog_id in recent_blogs.blog.blogId:
+            recent_blogs = sub_client.get_recent_blogs(start=0, size=10)
+            for blog_id in recent_blogs.blogId:
                 if blog_id not in old_blogs:
                     try:
                         sub_client.like_blog(blogId=blog_id)
                         if comments:
-                            sub_client.comment(message=random.choice(comments), blogId=blog_id)
-                            time.sleep(2.5)
+                            while True:
+                                try:
+                                    sub_client.comment(message=random.choice(comments), blogId=blog_id)
+                                    break
+                                except amino.exceptions.VerificationRequired:
+                                    time.sleep(1)
                     except amino.exceptions.RequestedNoLongerExists:
                         sub_client.like_blog(wikiId=blog_id)
                         if comments:
-                            sub_client.comment(message=random.choice(comments), wikiId=blog_id)
-                            time.sleep(2.5)
+                            while True:
+                                try:
+                                    sub_client.comment(message=random.choice(comments), wikiId=blog_id)
+                                    break
+                                except amino.exceptions.VerificationRequired:
+                                    time.sleep(1)
                     old_blogs.append(blog_id)
-            time.sleep(5)
 
     def follow_all(self):
         print("Subscribe...")
         sub_client = Community().sub_client(self.com_id, self.client)
         old = []
-        for i in range(0, 20000, 100):
-            recent_users = sub_client.get_all_users(type="recent", start=i, size=100).profile.userId
-            online_users = sub_client.get_online_users(start=i, size=100).profile.userId
+        pool = ThreadPool(10)
+        for i in range(0, 20000, 50):
+            recent_users = sub_client.get_all_users(type="recent", start=i, size=50).profile.userId
+            online_users = sub_client.get_online_users(start=i, size=50).profile.userId
             users = [*recent_users, *online_users]
             if users:
-                for userid in old:
-                    if userid in users:
-                        users.remove(userid)
-                for userid in users:
-                    old.append(userid)
                 try:
-                    sub_client.follow(userId=users)
+                    pool.apply_async(sub_client.follow, [users])
                 except:
                     pass
             else:
@@ -518,8 +538,8 @@ class SingleAccountManagement:
             chats = sub_client.get_public_chat_threads(type="recommended", start=i, size=100).chatId
             if chats:
                 for chatid in chats:
-                    for x in range(0, 1000, 100):
-                        users = sub_client.get_chat_users(chatId=chatid, start=x, size=100).userId
+                    for x in range(0, 1000, 50):
+                        users = sub_client.get_chat_users(chatId=chatid, start=x, size=50).userId
                         if users:
                             for userid in old:
                                 if userid in users:
@@ -527,7 +547,7 @@ class SingleAccountManagement:
                             for userid in users:
                                 old.append(userid)
                             try:
-                                sub_client.follow(userId=users)
+                                pool.apply_async(sub_client.follow, [users])
                             except:
                                 pass
                         else:
@@ -746,6 +766,26 @@ class MultiAccountsManagement:
                 try:
                     sub_client.activity_status("on")
                     print(Log().align(email, "Online status is set"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
+
+    def change_nick_random(self, max_length, nick, account: dict):
+        email = account.get("email")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community().sub_client(self.com_id, client)
+            if sub_client:
+                try:
+                    if nick is None:
+                        nick = UsernameGenerator(2, max_length).generate()
+                    sub_client.edit_profile(nickname=nick)
+                    print(Log().align(email, f"Nickname changed to {nick}"))
                 except amino.exceptions.YouAreBanned:
                     print(Log().align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
