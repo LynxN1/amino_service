@@ -14,4 +14,5 @@
 ||- 9. Unfollow bots from user
 ||- 10. Set online status
 ||- 11. Change nickname
+||- 12. Wall comment
 ====================

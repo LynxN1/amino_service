@@ -5,4 +5,5 @@
 ||- 1. Clear chat messages
 ||- 2. Save chat settings
 ||- 3. Set view only mode
+||- 4. Set view only mode (on timer)
 ====================

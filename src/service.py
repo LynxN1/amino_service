@@ -289,11 +289,15 @@ class Log:
 
 class ServiceApp:
     def __init__(self):
-        single_management = SingleAccountManagement(get_auth_data())
+        single_management = SingleAccountManagement()
         single_management.login()
         if single_management.client:
-            multi_management = MultiAccountsManagement(single_management.com_id)
-            chat_moderation = ChatModeration(single_management.client, single_management.com_id)
+            multi_management = MultiAccountsManagement()
+            multi_management.client = single_management.client
+            multi_management.com_id = single_management.com_id
+            chat_moderation = ChatModeration()
+            chat_moderation.client = single_management.client
+            chat_moderation.com_id = single_management.com_id
             while True:
                 try:
                     print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
@@ -387,6 +391,12 @@ class ServiceApp:
                                     nick = input("Enter nick: ")
                                     pool.map(partial(multi_management.change_nick_random, None, nick), get_accounts())
                                 print("[ChangeNickname]: Finish.")
+                            elif choice == "12":
+                                user_link = input("User link: ")
+                                userid = single_management.client.get_from_code(str(user_link.split('/')[-1])).objectId
+                                text = input("Text: ")
+                                pool.map(partial(multi_management.wall_comment, userid, text), get_accounts())
+                                print("[WallComment]: Finish.")
                             elif choice == "s":
                                 Login().update_sid(get_accounts(), pool)
                                 print("[UpdateSIDs]: Finish.")
@@ -409,6 +419,11 @@ class ServiceApp:
                                 object_id = Chats(single_management.client, single_management.com_id).select()
                                 chat_moderation.set_view_mode(object_id)
                                 print("[SetViewMode]: Finish.")
+                            elif choice == "4":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                duration = int(input("Duration in seconds: "))
+                                chat_moderation.set_view_mode_timer(object_id, duration)
+                                print("[SetViewMode]: Finish.")
                             elif choice == "b":
                                 break
                     elif management_choice == "0":
@@ -420,14 +435,13 @@ class ServiceApp:
 
 
 class SingleAccountManagement:
-    def __init__(self, auth_data):
-        self.auth_data = auth_data
+    def __init__(self):
         self.client = None
         self.com_id = None
 
     def login(self):
-        if self.auth_data:
-            self.client = Login().login(self.auth_data)
+        if get_auth_data():
+            self.client = Login().login(get_auth_data())
         else:
             email = input("Email: ")
             password = input("Password: ")
@@ -557,8 +571,9 @@ class SingleAccountManagement:
 
 
 class MultiAccountsManagement:
-    def __init__(self, com_id):
-        self.com_id = com_id
+    def __init__(self):
+        self.com_id = None
+        self.client = None
 
     def play_lottery(self, account: dict):
         email = account.get("email")
@@ -795,13 +810,31 @@ class MultiAccountsManagement:
             else:
                 print(Log().align(email, "Community error"))
 
+    def wall_comment(self, userid: str, text: str, account: dict):
+        email = account.get("email")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community().sub_client(self.com_id, client)
+            if sub_client:
+                try:
+                    sub_client.comment(message=text, userId=userid)
+                    print(Log().align(email, "Comment sent"))
+                except amino.exceptions.YouAreBanned:
+                    print(Log().align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(Log().align(email, "SID update required..."))
+                except Exception as e:
+                    print(Log().align(email, str(e)))
+            else:
+                print(Log().align(email, "Community error"))
+
 
 class ChatModeration:
-    def __init__(self, client, com_id):
-        self.client = client
-        self.com_id = com_id
+    def __init__(self):
+        self.com_id = None
+        self.client = None
 
-    def clear_chat(self, chatid, count):
+    def clear_chat(self, chatid: str, count: int):
         print("Clearing chat...")
         pool = ThreadPool(50)
         deleted = 0
@@ -827,7 +860,7 @@ class ChatModeration:
         else:
             print(colored("You don't have co-host/host rights to use this function", "red"))
 
-    def save_chat_settings(self, chatid):
+    def save_chat_settings(self, chatid: str):
         if os.path.exists(os.path.join(os.getcwd(), "src", "chat_settings")):
             pass
         else:
@@ -853,12 +886,28 @@ class ChatModeration:
             settings_file.write(data)
         print(colored(f"Settings saved in {os.path.join(os.getcwd(), 'src', 'chat_settings', f'{chatid}.txt')}", "green"))
 
-    def set_view_mode(self, chatid):
+    def set_view_mode(self, chatid: str):
         sub_client = Community().sub_client(self.com_id, self.client)
         chat = sub_client.get_chat_thread(chatId=chatid)
         admins = [*chat.coHosts, chat.author.userId]
         if self.client.userId in admins:
             sub_client.edit_chat(chatId=chatid, viewOnly=True)
             print("Chat mode is set to view")
+        else:
+            print(colored("You don't have co-host/host rights to use this function", "red"))
+
+    def set_view_mode_timer(self, chatid: str, duration: int):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        chat = sub_client.get_chat_thread(chatId=chatid)
+        admins = [*chat.coHosts, chat.author.userId]
+        if self.client.userId in admins:
+            sub_client.edit_chat(chatId=chatid, viewOnly=True)
+            print("Chat mode is set to view")
+            while duration > 0:
+                print(f"{duration} seconds left")
+                duration -= 1
+                time.sleep(1)
+            sub_client.edit_chat(chatId=chatid, viewOnly=False)
+            print("View mode disabled")
         else:
             print(colored("You don't have co-host/host rights to use this function", "red"))
