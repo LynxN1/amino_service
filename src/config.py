@@ -64,8 +64,19 @@ def converter():
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.txt"), "r") as bots_file:
         bots = bots_file.readlines()
         accounts = get_accounts()
+        if accounts is None:
+            accounts = []
         for i in bots:
             split = i.split(":")
             accounts.append({"email": split[0], "password": split[1].replace("\n", "")})
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w") as accounts_file:
         yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
+
+
+def align(text: str, action: str):
+    spaces = 30 - len(text)
+    text = f"[{text}"
+    for _ in range(spaces):
+        text += " "
+    text += f"]: {action}"
+    return text

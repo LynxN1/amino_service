@@ -15,4 +15,6 @@
 ||- 10. Set online status
 ||- 11. Change nickname
 ||- 12. Wall comment
+||- 13. Change icon
+||- 14. Vote for the selected option
 ====================

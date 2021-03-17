@@ -3,12 +3,13 @@ import amino
 import yaml
 import random
 import time
+import pathlib
 
 from functools import partial
 from multiprocessing.pool import ThreadPool
 from termcolor import colored
 from string import ascii_letters
-from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, get_auth_data, set_auth_data, converter
+from .config import get_accounts, get_devices, get_count, get_reg_devices, get_comments, set_pool_count, set_accounts, get_auth_data, set_auth_data, converter, align
 from .nick_gen import UsernameGenerator
 
 
@@ -25,28 +26,28 @@ class Login:
             except amino.exceptions.ActionNotAllowed:
                 client.device_id = client.headers.device_id = random.choice(get_devices()).replace("\n", "")
             except amino.exceptions.FailedLogin:
-                print(Log().align(email, "Failed login"))
+                print(align(email, "Failed login"))
                 return False
             except amino.exceptions.InvalidAccountOrPassword:
-                print(Log().align(email, "Invalid account or password"))
+                print(align(email, "Invalid account or password"))
                 return False
             except amino.exceptions.InvalidPassword:
-                print(Log().align(email, "Invalid Password"))
+                print(align(email, "Invalid Password"))
                 return False
             except amino.exceptions.InvalidEmail:
-                print(Log().align(email, "Invalid Email"))
+                print(align(email, "Invalid Email"))
                 return False
             except amino.exceptions.AccountDoesntExist:
-                print(Log().align(email, "Account does not exist"))
+                print(align(email, "Account does not exist"))
                 return False
             except amino.exceptions.VerificationRequired as verify:
-                print(Log().align(email, str(verify)))
+                print(align(email, str(verify)))
                 return False
             except amino.exceptions.InvalidSession:
-                print(Log().align(email, "SID update required..."))
+                print(align(email, "SID update required..."))
                 return False
             except Exception as e:
-                print(Log().align(email, str(e)))
+                print(align(email, str(e)))
                 return False
 
     @staticmethod
@@ -61,39 +62,43 @@ class Login:
             except amino.exceptions.ActionNotAllowed:
                 client.device_id = client.headers.device_id = random.choice(get_devices()).replace("\n", "")
             except amino.exceptions.FailedLogin:
-                print(Log().align(email, "Failed login"))
+                print(align(email, "Failed login"))
                 return False
             except amino.exceptions.InvalidAccountOrPassword:
-                print(Log().align(email, "Invalid account or password"))
+                print(align(email, "Invalid account or password"))
                 return False
             except amino.exceptions.InvalidPassword:
-                print(Log().align(email, "Invalid Password"))
+                print(align(email, "Invalid Password"))
                 return False
             except amino.exceptions.InvalidEmail:
-                print(Log().align(email, "Invalid Email"))
+                print(align(email, "Invalid Email"))
                 return False
             except amino.exceptions.AccountDoesntExist:
-                print(Log().align(email, "Account does not exist"))
+                print(align(email, "Account does not exist"))
                 return False
             except amino.exceptions.VerificationRequired as verify:
-                print(Log().align(email, str(verify)))
+                print(align(email, str(verify)))
                 return False
             except amino.exceptions.InvalidSession:
-                print(Log().align(email, "InvalidSession"))
+                print(align(email, "InvalidSession"))
                 return False
             except Exception as e:
-                print(Log().align(email, str(e)))
+                print(align(email, str(e)))
                 return False
 
     def check_sid(self, pool: ThreadPool):
         print("Checking accounts...")
-        accounts = get_accounts()
+        accounts = []
+        for i in get_accounts():
+            if i not in accounts:
+                accounts.append(i)
+        with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w") as file:
+            yaml.dump(accounts, file)
         bad_accounts = []
         if accounts:
             for account in accounts:
-                if account:
-                    if account.get("sid") is None:
-                        bad_accounts.append(account)
+                if account and account.get("sid") is None:
+                    bad_accounts.append(account)
             if bad_accounts:
                 print(f"{len(bad_accounts)} bad accounts detected.")
                 print("Starting update...")
@@ -121,7 +126,7 @@ class Login:
     def get_sid(self, account: dict):
         client = self.login(account)
         if client:
-            print(Log().align(account.get("email"), "SID updated"))
+            print(align(account.get("email"), "SID updated"))
             return {"email": account.get("email"), "password": account.get("password"), "sid": client.sid, "uid": client.profile.userId}
         else:
             return False
@@ -276,17 +281,6 @@ class Chats:
                 print(colored("Invalid chat number", "red"))
 
 
-class Log:
-    @staticmethod
-    def align(text: str, action: str):
-        spaces = 30 - len(text)
-        text = f"[{text}"
-        for _ in range(spaces):
-            text += " "
-        text += f"]: {action}"
-        return text
-
-
 class ServiceApp:
     def __init__(self):
         single_management = SingleAccountManagement()
@@ -397,6 +391,26 @@ class ServiceApp:
                                 text = input("Text: ")
                                 pool.map(partial(multi_management.wall_comment, userid, text), get_accounts())
                                 print("[WallComment]: Finish.")
+                            elif choice == "13":
+                                images = []
+                                currentDirectory = pathlib.Path('src\\icons')
+                                for currentFile in currentDirectory.iterdir():
+                                    images.append(str(currentFile).split("\\")[2])
+                                if images:
+                                    pool.map(partial(multi_management.change_icon_random, images), get_accounts())
+                                else:
+                                    print(colored("icons is empty", "red"))
+                                print("[ChangeIcon]: Finish.")
+                            elif choice == "14":
+                                blog_link = input("Blog link: ")
+                                object_id = single_management.client.get_from_code(str(blog_link.split('/')[-1])).objectId
+                                sub_client = Community().sub_client(single_management.com_id, single_management.client)
+                                polls = sub_client.get_blog_info(blogId=object_id).json["blog"]["polloptList"]
+                                for x, i in enumerate(polls, 1):
+                                    print(f"{x}. {i.get('title')}")
+                                option = polls[int(input("Select option number: ")) - 1]["polloptId"]
+                                pool.map(partial(multi_management.vote_poll, object_id, option), get_accounts())
+                                print("[Vote]: Finish.")
                             elif choice == "s":
                                 Login().update_sid(get_accounts(), pool)
                                 print("[UpdateSIDs]: Finish.")
@@ -584,18 +598,18 @@ class MultiAccountsManagement:
                 try:
                     play = sub_client.lottery()
                     award = play.awardValue if play.awardValue else 0
-                    print(Log().align(email, f"+{award} coins won"))
+                    print(align(email, f"+{award} coins won"))
                     return int(award)
                 except amino.exceptions.AlreadyPlayedLottery:
-                    print(Log().align(email, "AlreadyPlayedLottery"))
+                    print(align(email, "AlreadyPlayedLottery"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def send_coins(self, object_id, account: dict):
         email = account.get("email")
@@ -607,22 +621,22 @@ class MultiAccountsManagement:
                     coins = int(client.get_wallet_info().totalCoins)
                     if coins != 0:
                         sub_client.send_coins(coins=coins, blogId=object_id)
-                        print(Log().align(email, f"+{coins} coins"))
+                        print(align(email, f"+{coins} coins"))
                         return coins
                     else:
-                        print(Log().align(email, "NotEnoughCoins"))
+                        print(align(email, "NotEnoughCoins"))
                 except amino.exceptions.NotEnoughCoins:
-                    print(Log().align(email, "NotEnoughCoins"))
+                    print(align(email, "NotEnoughCoins"))
                 except amino.exceptions.InvalidRequest:
-                    print(Log().align(email, "InvalidRequest"))
+                    print(align(email, "InvalidRequest"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def like_blog(self, object_id, account: dict):
         email = account.get("email")
@@ -632,18 +646,18 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.like_blog(blogId=object_id)
-                    print(Log().align(email, "Like"))
+                    print(align(email, "Like"))
                 except amino.exceptions.RequestedNoLongerExists:
                     sub_client.like_blog(wikiId=object_id)
-                    print(Log().align(email, "Like"))
+                    print(align(email, "Like"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def join_bots_to_chat(self, object_id, account: dict):
         email = account.get("email")
@@ -653,17 +667,17 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.join_chat(chatId=object_id)
-                    print(Log().align(email, "Join"))
+                    print(align(email, "Join"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.RemovedFromChat:
-                    print(Log().align(email, "You are removed from this chatroom"))
+                    print(align(email, "You are removed from this chatroom"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def leave_bots_from_chat(self, object_id, account: dict):
         email = account.get("email")
@@ -673,17 +687,17 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.leave_chat(chatId=object_id)
-                    print(Log().align(email, "Leave"))
+                    print(align(email, "Leave"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.RemovedFromChat:
-                    print(Log().align(email, "You are removed from this chatroom"))
+                    print(align(email, "You are removed from this chatroom"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def join_bots_to_community(self, inv_link=None, account: dict = None):
         email = account.get("email")
@@ -694,19 +708,19 @@ class MultiAccountsManagement:
                 if invitation_id:
                     try:
                         client.join_community(comId=self.com_id, invitationId=invitation_id)
-                        print(Log().align(email, "Join"))
+                        print(align(email, "Join"))
                     except amino.exceptions.InvalidSession:
-                        print(Log().align(email, "SID update required..."))
+                        print(align(email, "SID update required..."))
                     except Exception as e:
-                        print(Log().align(email, str(e)))
+                        print(align(email, str(e)))
             else:
                 try:
                     client.join_community(comId=self.com_id)
-                    print(Log().align(email, "Join"))
+                    print(align(email, "Join"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
 
     def send_message(self, object_id, text, account: dict):
         email = account.get("email")
@@ -716,21 +730,21 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.send_message(chatId=object_id, message=text)
-                    print(Log().align(email, "Send"))
+                    print(align(email, "Send"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.RemovedFromChat:
-                    print(Log().align(email, "You are removed from this chatroom"))
+                    print(align(email, "You are removed from this chatroom"))
                 except amino.exceptions.ChatViewOnly:
-                    print(Log().align(email, "Chat in view only mode"))
+                    print(align(email, "Chat in view only mode"))
                 except amino.exceptions.AccessDenied:
-                    print(Log().align(email, "Access denied"))
+                    print(align(email, "Access denied"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def follow(self, object_id, account: dict):
         email = account.get("email")
@@ -740,17 +754,17 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.follow(userId=object_id)
-                    print(Log().align(email, "Follow"))
+                    print(align(email, "Follow"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.AccessDenied:
-                    print(Log().align(email, "Access denied"))
+                    print(align(email, "Access denied"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def unfollow(self, object_id, account: dict):
         email = account.get("email")
@@ -760,17 +774,17 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.unfollow(userId=object_id)
-                    print(Log().align(email, "Unfollow"))
+                    print(align(email, "Unfollow"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.AccessDenied:
-                    print(Log().align(email, "Access denied"))
+                    print(align(email, "Access denied"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def set_online_status(self, account: dict):
         email = account.get("email")
@@ -780,15 +794,15 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.activity_status("on")
-                    print(Log().align(email, "Online status is set"))
+                    print(align(email, "Online status is set"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
 
     def change_nick_random(self, max_length, nick, account: dict):
         email = account.get("email")
@@ -800,15 +814,35 @@ class MultiAccountsManagement:
                     if nick is None:
                         nick = UsernameGenerator(2, max_length).generate()
                     sub_client.edit_profile(nickname=nick)
-                    print(Log().align(email, f"Nickname changed to {nick}"))
+                    print(align(email, f"Nickname changed to {nick}"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
+
+    def change_icon_random(self, images: list, account: dict):
+        email = account.get("email")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community().sub_client(self.com_id, client)
+            if sub_client:
+                try:
+                    with open(f"src\\icons\\{random.choice(images)}", "rb") as file:
+                        icon = client.upload_media(file, "image")
+                    sub_client.edit_profile(icon=icon)
+                    print(align(email, "Icon changed"))
+                except amino.exceptions.YouAreBanned:
+                    print(align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(align(email, "SID update required..."))
+                except Exception as e:
+                    print(align(email, str(e)))
+            else:
+                print(align(email, "Community error"))
 
     def wall_comment(self, userid: str, text: str, account: dict):
         email = account.get("email")
@@ -818,15 +852,33 @@ class MultiAccountsManagement:
             if sub_client:
                 try:
                     sub_client.comment(message=text, userId=userid)
-                    print(Log().align(email, "Comment sent"))
+                    print(align(email, "Comment sent"))
                 except amino.exceptions.YouAreBanned:
-                    print(Log().align(email, "You are banned"))
+                    print(align(email, "You are banned"))
                 except amino.exceptions.InvalidSession:
-                    print(Log().align(email, "SID update required..."))
+                    print(align(email, "SID update required..."))
                 except Exception as e:
-                    print(Log().align(email, str(e)))
+                    print(align(email, str(e)))
             else:
-                print(Log().align(email, "Community error"))
+                print(align(email, "Community error"))
+
+    def vote_poll(self, blog_id: str, option_id: str, account: dict):
+        email = account.get("email")
+        client = Login().login_sid(account)
+        if client:
+            sub_client = Community().sub_client(self.com_id, client)
+            if sub_client:
+                try:
+                    sub_client.vote_poll(blogId=blog_id, optionId=option_id)
+                    print(align(email, "Comment sent"))
+                except amino.exceptions.YouAreBanned:
+                    print(align(email, "You are banned"))
+                except amino.exceptions.InvalidSession:
+                    print(align(email, "SID update required..."))
+                except Exception as e:
+                    print(align(email, str(e)))
+            else:
+                print(align(email, "Community error"))
 
 
 class ChatModeration:
