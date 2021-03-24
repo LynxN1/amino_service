@@ -1,0 +1,10 @@
+====================
+||      Menu      ||
+====================
+||- b. Back
+||- 1. Send system message
+||- 2. Spam system messages
+||- 3. Send error message
+||- 4. Delete chat(Co-Host)
+||- 5. Invite all online users to chat
+====================

@@ -40,6 +40,13 @@ def get_auth_data():
         return auth_data
 
 
+def set_auth_data(data):
+    get_data = list(get_auth_data())
+    get_data.append(data)
+    with open(os.path.join(os.getcwd(), "src", "auth", "data.json"), "w") as auth_data_file:
+        json.dump(get_data, auth_data_file, indent=2)
+
+
 def set_pool_count():
     while True:
         try:
@@ -53,11 +60,6 @@ def set_pool_count():
 def set_accounts(data):
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "a") as accounts_file:
         yaml.dump(data, accounts_file, Dumper=yaml.Dumper)
-
-
-def set_auth_data(data):
-    with open(os.path.join(os.getcwd(), "src", "auth", "data.json"), "w") as auth_data_file:
-        json.dump(data, auth_data_file, indent=2)
 
 
 def converter():

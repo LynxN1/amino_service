@@ -286,12 +286,15 @@ class ServiceApp:
         single_management = SingleAccountManagement()
         single_management.login()
         if single_management.client:
-            multi_management = MultiAccountsManagement()
+            multi_management        = MultiAccountsManagement()
             multi_management.client = single_management.client
             multi_management.com_id = single_management.com_id
-            chat_moderation = ChatModeration()
-            chat_moderation.client = single_management.client
-            chat_moderation.com_id = single_management.com_id
+            chat_moderation         = ChatModeration()
+            chat_moderation.client  = single_management.client
+            chat_moderation.com_id  = single_management.com_id
+            badass                  = Badass()
+            badass.client           = single_management.client
+            badass.com_id           = single_management.com_id
             while True:
                 try:
                     print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
@@ -440,6 +443,30 @@ class ServiceApp:
                                 print("[SetViewMode]: Finish.")
                             elif choice == "b":
                                 break
+                    elif management_choice == "4":
+                        while True:
+                            print(colored(open("src/draw/badass_management.txt", "r").read(), "cyan"))
+                            choice = input("Enter the number >>> ")
+                            if choice == "1":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                badass.send_system_message(object_id)
+                                print("[SystemMessage]: Finish.")
+                            elif choice == "2":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                badass.spam_system_message(object_id)
+                                print("[SpamSystemMessages]: Finish.")
+                            elif choice == "3":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                badass.send_error_message(object_id)
+                                print("[SendErrorMessage]: Finish.")
+                            elif choice == "4":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                badass.delete_chat(object_id)
+                                print("[DeleteChat]: Finish.")
+                            elif choice == "5":
+                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                badass.invite_all_users(object_id)
+                                print("[InviteAllOnlineUsers]: Finish.")
                     elif management_choice == "0":
                         converter()
                 except Exception as e:
@@ -454,8 +481,26 @@ class SingleAccountManagement:
         self.com_id = None
 
     def login(self):
-        if get_auth_data():
-            self.client = Login().login(get_auth_data())
+        accounts = get_auth_data()
+        if accounts:
+            print("Accounts:")
+            for x, account in enumerate(accounts, 1):
+                print(f"{x}. {account.get('email')}")
+            choice = input("\nEnter \"+\" to add account\n>>> ")
+            if choice == "+":
+                email = input("Email: ")
+                password = input("Password: ")
+                self.client = Login().login({"email": email, "password": password})
+                if self.client:
+                    set_auth_data({"email": email, "password": password})
+                else:
+                    print(colored("Failed login", "red"))
+                    return False
+            else:
+                index = int(choice) - 1
+                email = accounts[index].get("email")
+                password = accounts[index].get("password")
+                self.client = Login().login({"email": email, "password": password})
         else:
             email = input("Email: ")
             password = input("Password: ")
@@ -831,7 +876,7 @@ class MultiAccountsManagement:
             sub_client = Community().sub_client(self.com_id, client)
             if sub_client:
                 try:
-                    with open(f"src\\icons\\{random.choice(images)}", "rb") as file:
+                    with open(os.path.join(os.getcwd(), "src", "icons", f"{random.choice(images)}"), "rb") as file:
                         icon = client.upload_media(file, "image")
                     sub_client.edit_profile(icon=icon)
                     print(align(email, "Icon changed"))
@@ -963,3 +1008,71 @@ class ChatModeration:
             print("View mode disabled")
         else:
             print(colored("You don't have co-host/host rights to use this function", "red"))
+
+
+class Badass:
+    def __init__(self):
+        self.com_id = None
+        self.client = None
+
+    def send_system_message(self, chatid: str):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        back = False
+        while not back:
+            message_type = int(input("Message type: "))
+            message = input("Message: ")
+            try:
+                sub_client.send_message(chatId=chatid, messageType=message_type, message=message)
+                print("Message sent")
+            except amino.exceptions.ChatViewOnly:
+                print(colored("Chat is in only view mode", "red"))
+            except:
+                pass
+            choice = input("Send again?(y/n): ")
+            if choice.lower() == "n":
+                back = True
+
+    def spam_system_message(self, chatid: str):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        pool_count = int(input("Number of threads: "))
+        pool = ThreadPool(pool_count)
+        message_type = int(input("Message type: "))
+        message = input("Message: ")
+        back = False
+        while not back:
+            for _ in range(pool_count):
+                print("Message sent")
+                pool.apply_async(sub_client.send_message, [chatid, message, message_type])
+            choice = input("Spam again?(y/n): ")
+            if choice == "n":
+                back = True
+
+    def send_error_message(self, chatid: str):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        message_type = int(input("Message type: "))
+        message = input("Message: ")
+        sub_client.send_message(chatId=chatid, messageType=message_type, message=message, refId=182349782384762342)
+        print("Message sent")
+
+    def delete_chat(self, chatid: str):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        chat = sub_client.get_chat_thread(chatId=chatid)
+        admins = [*chat.coHosts, chat.author.userId]
+        if self.client.userId in admins:
+            sub_client.kick(chatId=chatid, allowRejoin=False, userId=chat.author.userId)
+            print("Chat deleted")
+        else:
+            print(colored("You don't have co-host/host rights to use this function", "red"))
+
+    def invite_all_users(self, chatid: str):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        pool = ThreadPool(20)
+        for i in range(0, 10000, 100):
+            users = sub_client.get_online_users(start=i, size=100).profile.userId
+            if users:
+                for userid in users:
+                    print(f"{userid} Invited to chat")
+                    pool.apply_async(sub_client.invite_to_chat, [userid, chatid])
+            else:
+                break
+        print("All online users invited to chat")

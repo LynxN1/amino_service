@@ -796,7 +796,7 @@ def CheckException(data):
     elif api_code == 251: raise API_ERR_EMAIL_NO_PASSWORD(data)
     elif api_code == 257: raise API_ERR_COMMUNITY_USER_CREATED_COMMUNITIES_VERIFY(data)
     elif api_code == 262: raise ReachedMaxTitles(data)
-    elif api_code == 270: raise VerificationRequired(data)
+    elif api_code == 270: raise VerificationRequired(data["url"])
     elif api_code == 271: raise API_ERR_INVALID_AUTH_NEW_DEVICE_LINK(data)
     elif api_code == 291: raise CommandCooldown(data)
     elif api_code == 293: raise UserBannedByTeamAmino(data)

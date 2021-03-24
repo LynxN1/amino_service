@@ -830,7 +830,7 @@ class SubClient:
     def send_message(self, chatId: str, message: str = None, messageType: int = 0, file: BinaryIO = None,
                      fileType: str = None, replyTo: str = None, mentionUserIds: list = None, stickerId: str = None,
                      embedId: str = None, embedType: int = None, embedLink: str = None, embedTitle: str = None,
-                     embedContent: str = None, embedImage: BinaryIO = None):
+                     embedContent: str = None, embedImage: BinaryIO = None, refId: int = int(timestamp() / 10 % 1000000000)):
         """
         Send a Message to a Chat.
 
@@ -870,7 +870,7 @@ class SubClient:
         data = {
             "type": messageType,
             "content": message,
-            "clientRefId": int(timestamp() / 10 % 1000000000),
+            "clientRefId": refId,
             "attachedObject": {
                 "objectId": embedId,
                 "objectType": embedType,
