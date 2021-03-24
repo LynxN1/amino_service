@@ -7,4 +7,5 @@
 ||- 3. Like recent blogs
 ||- 4. Follow all
 ||- 5. Register account
+||- 6. List of users who blocked you
 ====================

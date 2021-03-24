@@ -7,4 +7,5 @@
 ||- 3. Send error message
 ||- 4. Delete chat(Co-Host)
 ||- 5. Invite all online users to chat
+||- 6. Spam posts
 ====================

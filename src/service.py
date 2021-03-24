@@ -320,6 +320,8 @@ class ServiceApp:
                             elif choice == "5":
                                 Register().run()
                                 print("[Register]: Finish.")
+                            elif choice == "6":
+                                single_management.get_blocker_users()
                             elif choice == "b":
                                 break
                     elif management_choice == "2":
@@ -467,6 +469,11 @@ class ServiceApp:
                                 object_id = Chats(single_management.client, single_management.com_id).select()
                                 badass.invite_all_users(object_id)
                                 print("[InviteAllOnlineUsers]: Finish.")
+                            elif choice == "6":
+                                badass.spam_posts()
+                                print("[SpamPosts]: Finish.")
+                            elif choice == "b":
+                                break
                     elif management_choice == "0":
                         converter()
                 except Exception as e:
@@ -627,6 +634,18 @@ class SingleAccountManagement:
                             break
             else:
                 break
+
+    def get_blocker_users(self):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        users = sub_client.get_blocker_users(start=0, size=100)
+        if users:
+            for x, i in enumerate(users, 1):
+                user = sub_client.get_user_info(i)
+                print(f"{x}.")
+                print(f"Userid: {i}")
+                print(f"Nickname: {user.nickname}")
+                print(f"Lvl: {user.level}")
+                print()
 
 
 class MultiAccountsManagement:
@@ -1044,7 +1063,7 @@ class Badass:
                 print("Message sent")
                 pool.apply_async(sub_client.send_message, [chatid, message, message_type])
             choice = input("Spam again?(y/n): ")
-            if choice == "n":
+            if choice.lower() == "n":
                 back = True
 
     def send_error_message(self, chatid: str):
@@ -1076,3 +1095,18 @@ class Badass:
             else:
                 break
         print("All online users invited to chat")
+
+    def spam_posts(self):
+        sub_client = Community().sub_client(self.com_id, self.client)
+        pool_count = int(input("Number of threads: "))
+        pool = ThreadPool(pool_count)
+        title = input("Post title: ")
+        content = input("Post content: ")
+        back = False
+        while not back:
+            for i in range(pool_count):
+                print("Post sent")
+                pool.apply_async(sub_client.post_blog, [title, content])
+            choice = input("Send again?(y/n): ")
+            if choice.lower() == "n":
+                back = True
