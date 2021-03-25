@@ -1040,6 +1040,7 @@ class Badass:
 
     def send_system_message(self, chatid: str):
         sub_client = Community().sub_client(self.com_id, self.client)
+        sub_client.join_chat(chatid)
         back = False
         while not back:
             message_type = int(input("Message type: "))
@@ -1057,6 +1058,7 @@ class Badass:
 
     def spam_system_message(self, chatid: str):
         sub_client = Community().sub_client(self.com_id, self.client)
+        sub_client.join_chat(chatid)
         pool_count = int(input("Number of threads: "))
         pool = ThreadPool(pool_count)
         count_messages = int(input("Number of messages: "))
