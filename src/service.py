@@ -450,11 +450,21 @@ class ServiceApp:
                             print(colored(open("src/draw/badass_management.txt", "r").read(), "cyan"))
                             choice = input("Enter the number >>> ")
                             if choice == "1":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list: ")
+                                if choice_mode == "1":
+                                    link = input("Link: ")
+                                    object_id = single_management.client.get_from_code(str(link.split('/')[-1])).objectId
+                                else:
+                                    object_id = Chats(single_management.client, single_management.com_id).select()
                                 badass.send_system_message(object_id)
                                 print("[SendSystem]: Finish.")
                             elif choice == "2":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
+                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list: ")
+                                if choice_mode == "1":
+                                    link = input("Link: ")
+                                    object_id = single_management.client.get_from_code(str(link.split('/')[-1])).objectId
+                                else:
+                                    object_id = Chats(single_management.client, single_management.com_id).select()
                                 badass.spam_system_message(object_id)
                                 print("[SpamSystem]: Finish.")
                             elif choice == "3":
