@@ -292,9 +292,6 @@ class ServiceApp:
             chat_moderation         = ChatModeration()
             chat_moderation.client  = single_management.client
             chat_moderation.com_id  = single_management.com_id
-            badass                  = Badass()
-            badass.client           = single_management.client
-            badass.com_id           = single_management.com_id
             while True:
                 try:
                     print(colored(open("src/draw/management_choice.txt", "r").read(), "cyan"))
@@ -445,35 +442,6 @@ class ServiceApp:
                                 print("[SetViewMode]: Finish.")
                             elif choice == "b":
                                 break
-                    elif management_choice == "4":
-                        while True:
-                            print(colored(open("src/draw/badass_management.txt", "r").read(), "cyan"))
-                            choice = input("Enter the number >>> ")
-                            if choice == "1":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
-                                badass.send_system_message(object_id)
-                                print("[SystemMessage]: Finish.")
-                            elif choice == "2":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
-                                badass.spam_system_message(object_id)
-                                print("[SpamSystemMessages]: Finish.")
-                            elif choice == "3":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
-                                badass.send_error_message(object_id)
-                                print("[SendErrorMessage]: Finish.")
-                            elif choice == "4":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
-                                badass.delete_chat(object_id)
-                                print("[DeleteChat]: Finish.")
-                            elif choice == "5":
-                                object_id = Chats(single_management.client, single_management.com_id).select()
-                                badass.invite_all_users(object_id)
-                                print("[InviteAllOnlineUsers]: Finish.")
-                            elif choice == "6":
-                                badass.spam_posts()
-                                print("[SpamPosts]: Finish.")
-                            elif choice == "b":
-                                break
                     elif management_choice == "0":
                         converter()
                 except Exception as e:
@@ -552,22 +520,20 @@ class SingleAccountManagement:
         print(f"[quiz]: Score: {sub_client.get_quiz_rankings(quizId=object_id).profile.highestScore}")
 
     def unfollow_all(self):
-        print("Unfollow all...")
-        thread_pool = ThreadPool(50)
+        print("Unfollowing...")
+        pool_count = int(input("Number of threads: "))
+        thread_pool = ThreadPool(pool_count)
         sub_client = Community().sub_client(self.com_id, self.client)
-        while True:
-            following_count = sub_client.get_user_info(userId=self.client.userId).followingCount
-            if following_count > 0:
-                for i in range(0, following_count, 100):
-                    followings = sub_client.get_user_following(userId=self.client.userId, start=i, size=100)
-                    users = followings.userId
-                    if users:
-                        for user_id in users:
-                            thread_pool.apply(sub_client.unfollow, [user_id])
-                    else:
-                        break
+        back = False
+        x = 0
+        while not back:
+            followings = sub_client.get_user_following(userId=self.client.userId, start=x, size=100)
+            x += 100
+            if followings.userId:
+                for i in followings.userId:
+                    thread_pool.apply_async(sub_client.unfollow, [i])
             else:
-                break
+                back = True
 
     def activity(self):
         print("Activity...")
@@ -1027,86 +993,3 @@ class ChatModeration:
             print("View mode disabled")
         else:
             print(colored("You don't have co-host/host rights to use this function", "red"))
-
-
-class Badass:
-    def __init__(self):
-        self.com_id = None
-        self.client = None
-
-    def send_system_message(self, chatid: str):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        back = False
-        while not back:
-            message_type = int(input("Message type: "))
-            message = input("Message: ")
-            try:
-                sub_client.send_message(chatId=chatid, messageType=message_type, message=message)
-                print("Message sent")
-            except amino.exceptions.ChatViewOnly:
-                print(colored("Chat is in only view mode", "red"))
-            except:
-                pass
-            choice = input("Send again?(y/n): ")
-            if choice.lower() == "n":
-                back = True
-
-    def spam_system_message(self, chatid: str):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        pool_count = int(input("Number of threads: "))
-        pool = ThreadPool(pool_count)
-        message_type = int(input("Message type: "))
-        message = input("Message: ")
-        back = False
-        while not back:
-            for _ in range(pool_count):
-                print("Message sent")
-                pool.apply_async(sub_client.send_message, [chatid, message, message_type])
-            choice = input("Spam again?(y/n): ")
-            if choice.lower() == "n":
-                back = True
-
-    def send_error_message(self, chatid: str):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        message_type = int(input("Message type: "))
-        message = input("Message: ")
-        sub_client.send_message(chatId=chatid, messageType=message_type, message=message, refId=182349782384762342)
-        print("Message sent")
-
-    def delete_chat(self, chatid: str):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        chat = sub_client.get_chat_thread(chatId=chatid)
-        admins = [*chat.coHosts, chat.author.userId]
-        if self.client.userId in admins:
-            sub_client.kick(chatId=chatid, allowRejoin=False, userId=chat.author.userId)
-            print("Chat deleted")
-        else:
-            print(colored("You don't have co-host/host rights to use this function", "red"))
-
-    def invite_all_users(self, chatid: str):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        pool = ThreadPool(20)
-        for i in range(0, 10000, 100):
-            users = sub_client.get_online_users(start=i, size=100).profile.userId
-            if users:
-                for userid in users:
-                    print(f"{userid} Invited to chat")
-                    pool.apply_async(sub_client.invite_to_chat, [userid, chatid])
-            else:
-                break
-        print("All online users invited to chat")
-
-    def spam_posts(self):
-        sub_client = Community().sub_client(self.com_id, self.client)
-        pool_count = int(input("Number of threads: "))
-        pool = ThreadPool(pool_count)
-        title = input("Post title: ")
-        content = input("Post content: ")
-        back = False
-        while not back:
-            for i in range(pool_count):
-                print("Post sent")
-                pool.apply_async(sub_client.post_blog, [title, content])
-            choice = input("Send again?(y/n): ")
-            if choice.lower() == "n":
-                back = True

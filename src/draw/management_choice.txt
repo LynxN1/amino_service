@@ -5,5 +5,4 @@
 ||- 1. Main Account
 ||- 2. Bots
 ||- 3. Chat Moderation
-||- 4. Badass
 =======================
