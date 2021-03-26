@@ -141,10 +141,12 @@ class Register:
             print(colored("Password must be at least 6 characters long", "red"))
             self.password = input("Set a password for all accounts: ")
         self.code = None
+        self.count = 0
 
     def run(self):
-        if get_reg_devices():
-            for device in get_reg_devices():
+        reg_devices = get_reg_devices()
+        if reg_devices:
+            for device in reg_devices:
                 self.client.device_id = self.client.headers.device_id = device.replace("\n", "")
                 for _ in range(3):
                     self.email = input("Email: ")
@@ -154,6 +156,8 @@ class Register:
                             if self.login():
                                 if self.activate():
                                     self.save_account()
+                                    self.count += 1
+                                    print(f"{self.count} accounts registered")
                                 else:
                                     continue
                             else:
@@ -162,6 +166,7 @@ class Register:
                             continue
                     else:
                         continue
+                self.remove_device()
         else:
             print(colored("reg_devices.txt is empty", "red"))
 
@@ -187,7 +192,7 @@ class Register:
                 print(colored("CommandCooldown", "red"))
                 return False
             except amino.exceptions.VerificationRequired as e:
-                input(str(e) + "\n\npress ENTER to continue...")
+                input("Open this link in a browser and click the checkmark: " + str(e) + "\n\npress ENTER to continue...")
             except Exception as e:
                 print(colored(str(e), "red"))
                 return False
@@ -226,7 +231,15 @@ class Register:
 
     def save_account(self):
         with open(os.getcwd() + "/src/accounts/new_accounts.yaml", "a") as accounts_file:
-            yaml.dump({"email": self.email, "password": self.password}, accounts_file, Dumper=yaml.Dumper)
+            yaml.dump([{"email": self.email, "password": self.password}], accounts_file, Dumper=yaml.Dumper)
+        print(colored(f"{self.email} saved in new_accounts.yaml", "green"))
+
+    def remove_device(self):
+        devices = get_reg_devices()
+        devices.pop(0)
+        with open(os.getcwd() + "src/devices/reg_devices.txt", "w") as devices_file:
+            for i in devices:
+                devices_file.write(i)
 
 
 class Community:
@@ -450,7 +463,7 @@ class ServiceApp:
                             print(colored(open("src/draw/badass_management.txt", "r").read(), "cyan"))
                             choice = input("Enter the number >>> ")
                             if choice == "1":
-                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list: ")
+                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list\n>>> ")
                                 if choice_mode == "1":
                                     link = input("Link: ")
                                     object_id = single_management.client.get_from_code(str(link.split('/')[-1])).objectId
@@ -459,7 +472,7 @@ class ServiceApp:
                                 badass.send_system_message(object_id)
                                 print("[SendSystem]: Finish.")
                             elif choice == "2":
-                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list: ")
+                                choice_mode = input("Select a chat from the list or by link?\n1 - by link\n2 - from the list\n>>> ")
                                 if choice_mode == "1":
                                     link = input("Link: ")
                                     object_id = single_management.client.get_from_code(str(link.split('/')[-1])).objectId
@@ -1045,6 +1058,7 @@ class Badass:
         while not back:
             message_type = int(input("Message type: "))
             message = input("Message: ")
+
             try:
                 sub_client.send_message(chatId=chatid, messageType=message_type, message=message)
                 print("Message sent")
@@ -1058,12 +1072,12 @@ class Badass:
 
     def spam_system_message(self, chatid: str):
         sub_client = Community().sub_client(self.com_id, self.client)
-        sub_client.join_chat(chatid)
         pool_count = int(input("Number of threads: "))
         pool = ThreadPool(pool_count)
         count_messages = int(input("Number of messages: "))
         message_type = int(input("Message type: "))
         message = input("Message: ")
+        sub_client.join_chat(chatid)
         back = False
         while not back:
             for _ in range(count_messages):
