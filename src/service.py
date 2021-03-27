@@ -237,7 +237,7 @@ class Register:
     def remove_device(self):
         devices = get_reg_devices()
         devices.pop(0)
-        with open(os.getcwd() + "src/devices/reg_devices.txt", "w") as devices_file:
+        with open(os.getcwd() + "/src/devices/reg_devices.txt", "w") as devices_file:
             for i in devices:
                 devices_file.write(i)
 
