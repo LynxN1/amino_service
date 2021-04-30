@@ -19,13 +19,13 @@ if __name__ == '__main__':
         info = json.load(info_file)
 
     __version__ = info["version"]
-    __author__ = info["author"]
-    __github__ = info["github"]
-    __newest__ = json.loads(requests.get("https://github.com/LynxN1/amino_service/raw/master/version.json").text)["version"]
+    __author__  = info["author"]
+    __github__  = info["github"]
+    __newest__  = json.loads(requests.get("https://github.com/LynxN1/amino_service/raw/master/version.json").text)["version"]
 
     if __version__ != __newest__:
-        print(f"\nNew version of Amino Service available! ({__newest__})\n")
+        print(colored(f"New version of Amino Service available! ({__newest__})\n", "yellow"))
 
-    print(colored(open("src/draw/logo.txt", "r").read().replace("v?", __version__).replace("a?", __author__).replace("g?", __github__).replace("_", " "), "green"))
+    print(colored(open("src/view/logo.txt", "r").read().replace("v?", __version__).replace("a?", __author__).replace("g?", __github__).replace("_", " "), "green"))
 
-    ServiceApp()
+    ServiceApp().run()

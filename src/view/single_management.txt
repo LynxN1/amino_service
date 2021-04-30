@@ -4,8 +4,9 @@
 ||- b. Back
 ||- 1. Play quiz
 ||- 2. Unfollow all
-||- 3. Like recent blogs
+||- 3. Like+comment recent blogs
 ||- 4. Follow all
 ||- 5. Register account
 ||- 6. List of users who blocked you
+||- 7. Send coins
 ====================

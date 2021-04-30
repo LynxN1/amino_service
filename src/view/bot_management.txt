@@ -2,7 +2,6 @@
 ||      Menu      ||
 ====================
 ||- b. Back
-||- s. Update SIDs
 ||- 1. Play lottery
 ||- 2. Send coins
 ||- 3. Like blog
@@ -17,4 +16,5 @@
 ||- 12. Wall comment
 ||- 13. Change icon
 ||- 14. Vote for the selected option
+||- 15. Start chat with user
 ====================

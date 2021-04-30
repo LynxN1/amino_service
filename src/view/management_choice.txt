@@ -6,4 +6,5 @@
 ||- 2. Bots
 ||- 3. Chat Moderation
 ||- 4. Badass
+||- 5. Create accounts
 =======================

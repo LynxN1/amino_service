@@ -9,21 +9,6 @@ def get_accounts():
         return yaml.load(accounts_file.read(), Loader=yaml.Loader)
 
 
-def get_comments():
-    with open(os.path.join(os.getcwd(), "src", "activity", "comments.txt"), "r", encoding="utf-8") as comments_file:
-        return comments_file.readlines()
-
-
-def get_devices():
-    with open(os.path.join(os.getcwd(), "src", "devices", "devices.txt"), "r") as devices_file:
-        return devices_file.readlines()
-
-
-def get_reg_devices():
-    with open(os.path.join(os.getcwd(), "src", "devices", "reg_devices.txt"), "r") as reg_devices_file:
-        return reg_devices_file.readlines()
-
-
 def get_count(values: list):
     total_count = 0
     total_accounts = 0
@@ -47,21 +32,6 @@ def set_auth_data(data):
         json.dump(get_data, auth_data_file, indent=2)
 
 
-def set_pool_count():
-    while True:
-        try:
-            pool_count = int(input("Number of threads(1-50): "))
-            if 1 <= pool_count <= 50:
-                return pool_count
-        except ValueError:
-            continue
-
-
-def set_accounts(data):
-    with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "a") as accounts_file:
-        yaml.dump(data, accounts_file, Dumper=yaml.Dumper)
-
-
 def converter():
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.txt"), "r") as bots_file:
         bots = bots_file.readlines()
@@ -75,10 +45,14 @@ def converter():
         yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
 
 
-def align(text: str, action: str):
-    spaces = 30 - len(text)
-    text = f"[{text}"
-    for _ in range(spaces):
+def align(email: str, action: str):
+    bots = get_accounts()
+    if bots and email:
+        spaces = max([len(i["email"]) for i in bots]) - len(email)
+    else:
+        spaces = 20
+    text = f"[{email}"
+    for _ in range(spaces+2):
         text += " "
     text += f"]: {action}"
     return text
