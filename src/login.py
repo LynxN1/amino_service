@@ -1,3 +1,4 @@
+import os
 import random
 
 import amino
@@ -13,7 +14,7 @@ def login(account: dict):
             client.login(email, password)
             return client
         except amino.exceptions.ActionNotAllowed:
-            client.device_id = client.headers.device_id = random.choice(open("src\\devices\\devices.txt", "r").readlines()).replace("\n", "")
+            client.device_id = client.headers.device_id = random.choice(open(os.path.join(os.getcwd(), "src", "devices", "devices.txt"), "r").readlines()).replace("\n", "")
         except amino.exceptions.FailedLogin:
             print(align(email, "Failed login"))
             return False

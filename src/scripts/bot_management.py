@@ -1,3 +1,4 @@
+import os
 import random
 
 import amino
@@ -220,7 +221,8 @@ class BotManagement:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
         try:
-            icon = client.upload_media(open(f"src\\icons\\{random.choice(images)}", "rb"), "image")
+
+            icon = client.upload_media(open(os.path.join(os.getcwd(), "src", "icons", f"{random.choice(images)}"), "rb"), "image")
             sub_client.edit_profile(icon=icon)
             print(align(email, "Icon changed"))
         except amino.exceptions.YouAreBanned:

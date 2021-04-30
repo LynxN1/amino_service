@@ -1,3 +1,4 @@
+import os
 import random
 from multiprocessing.pool import ThreadPool
 
@@ -54,7 +55,8 @@ class SingleManagement:
                 break
 
     def like_recent_blogs(self):
-        comments = open("src\\activity\\comments.txt", "r", encoding="utf-8").readlines()
+
+        comments = open(os.path.join(os.getcwd(), "src", "activity", "comments.txt"), "r", encoding="utf-8").readlines()
         x = 0
         count = 0
         while True:

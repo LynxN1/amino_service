@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 from functools import partial
 from multiprocessing.pool import ThreadPool
@@ -17,7 +18,7 @@ from .scripts.single_management import SingleManagement
 
 class ServiceApp:
     def __init__(self):
-        accounts = json.load(open("src\\auth\\data.json", "r"))
+        accounts = json.load(open(os.path.join(os.getcwd(), "src", "auth", "data.json"), "r"))
         email = None
         password = None
         if accounts:
@@ -89,7 +90,7 @@ class ServiceApp:
                         elif choice == "b":
                             break
                 elif management_choice == "2":
-                    pool = ThreadPool(int(input("Count of threads: ")))
+                    pool = ThreadPool(int(input("Number of threads: ")))
                     while True:
                         print(colored(open("src/view/bot_management.txt", "r").read(), "cyan"))
                         choice = input("Enter the number >>> ")

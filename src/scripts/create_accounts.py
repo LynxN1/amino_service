@@ -1,3 +1,4 @@
+import os
 import random
 
 import yaml
@@ -19,7 +20,7 @@ class CreateAccounts:
         self.count = 0
 
     def run(self):
-        reg_devices = open("src\\devices\\reg_devices.txt", "r").readlines()
+        reg_devices = open(os.path.join(os.getcwd(), "src", "devices", "reg_devices.txt"), "r").readlines()
         if reg_devices:
             for device in reg_devices:
                 self.client.device_id = self.client.headers.device_id = device.replace("\n", "")
@@ -90,7 +91,7 @@ class CreateAccounts:
                 self.client.login(email=self.email, password=self.password)
                 return True
             except amino.exceptions.ActionNotAllowed:
-                self.client.device_id = random.choice(open("src\\devices\\devices.txt", "r").readlines()).replace("\n", "")
+                self.client.device_id = random.choice(open(os.path.join(os.getcwd(), "src", "devices", "devices.txt"), "r").readlines()).replace("\n", "")
             except Exception as e:
                 print(colored(str(e), "red"))
                 return False
@@ -105,13 +106,13 @@ class CreateAccounts:
                 return False
 
     def save_account(self):
-        with open("src\\accounts\\created_accounts.yaml", "a") as accounts_file:
+        with open(os.path.join(os.getcwd(), "src", "accounts", "created_accounts.yaml"), "a") as accounts_file:
             yaml.dump([{"email": self.email, "password": self.password}], accounts_file, Dumper=yaml.Dumper)
         print(colored(f"{self.email} saved in created_accounts.yaml", "green"))
 
     def remove_device(self):
-        devices = open("src\\devices\\reg_devices.txt", "r").readlines()
+        devices = open(os.path.join(os.getcwd(), "src", "devices", "reg_devices.txt"), "r").readlines()
         devices.pop(0)
-        with open("src\\devices\\reg_devices.txt", "w") as devices_file:
+        with open(os.path.join(os.getcwd(), "src", "devices", "reg_devices.txt"), "w") as devices_file:
             for i in devices:
                 devices_file.write(i)
