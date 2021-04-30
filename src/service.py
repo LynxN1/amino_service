@@ -78,10 +78,10 @@ class ServiceApp:
                         elif choice == "4":
                             self.single_management.follow_all()
                             print("[FollowAll]: Finish.")
-                        elif choice == "6":
+                        elif choice == "5":
                             self.single_management.get_blocker_users()
                             print("[BlockerUsers]: Finish.")
-                        elif choice == "7":
+                        elif choice == "6":
                             count = input("Number of coins: ")
                             blog_link = input("Blog link: ")
                             object_id = self.client.get_from_code(str(blog_link.split('/')[-1])).objectId
