@@ -55,7 +55,6 @@ class SingleManagement:
                 break
 
     def like_recent_blogs(self):
-
         comments = open(os.path.join(os.getcwd(), "src", "activity", "comments.txt"), "r", encoding="utf-8").readlines()
         x = 0
         count = 0

@@ -7,7 +7,7 @@ from multiprocessing.pool import ThreadPool
 from termcolor import colored
 
 import amino
-from .login import login
+from .login import login, check_sid
 from .other import get_accounts, get_count, set_auth_data, converter
 from .scripts.badass import Badass
 from .scripts.bot_management import BotManagement
@@ -90,6 +90,7 @@ class ServiceApp:
                         elif choice == "b":
                             break
                 elif management_choice == "2":
+                    check_sid()
                     pool = ThreadPool(int(input("Number of threads: ")))
                     while True:
                         print(colored(open("src/view/bot_management.txt", "r").read(), "cyan"))

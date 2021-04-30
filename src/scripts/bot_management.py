@@ -2,7 +2,7 @@ import os
 import random
 
 import amino
-from src.login import login
+from src.login import login_sid
 from src.nick_gen import UsernameGenerator
 from src.other import align
 
@@ -13,7 +13,7 @@ class BotManagement:
 
     def play_lottery(self, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -31,7 +31,7 @@ class BotManagement:
 
     def send_coins(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -54,7 +54,7 @@ class BotManagement:
 
     def like_blog(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -71,7 +71,7 @@ class BotManagement:
 
     def join_bots_to_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -87,7 +87,7 @@ class BotManagement:
 
     def leave_bots_from_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -103,7 +103,7 @@ class BotManagement:
 
     def join_bots_to_community(self, inv_link=None, account: dict = None):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         invitation_id = None
@@ -118,7 +118,7 @@ class BotManagement:
 
     def send_message(self, object_id, text, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -138,7 +138,7 @@ class BotManagement:
 
     def follow(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -154,7 +154,7 @@ class BotManagement:
 
     def unfollow(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -170,7 +170,7 @@ class BotManagement:
 
     def start_chat(self, object_id, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -186,7 +186,7 @@ class BotManagement:
 
     def set_online_status(self, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -200,7 +200,7 @@ class BotManagement:
 
     def change_nick_random(self, max_length, nick, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -216,7 +216,7 @@ class BotManagement:
 
     def change_icon_random(self, images: list, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -232,7 +232,7 @@ class BotManagement:
 
     def wall_comment(self, userid: str, text: str, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)
@@ -246,7 +246,7 @@ class BotManagement:
 
     def vote_poll(self, blog_id: str, option_id: str, account: dict):
         email = account.get("email")
-        client = login(account)
+        client = login_sid(account)
         if not client:
             return
         sub_client = amino.SubClient(comId=self.com_id, client=client)

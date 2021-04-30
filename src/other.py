@@ -46,13 +46,8 @@ def converter():
 
 
 def align(email: str, action: str):
-    bots = get_accounts()
-    if bots and email:
-        spaces = max([len(i["email"]) for i in bots]) - len(email)
-    else:
-        spaces = 20
+    spaces = 30 - len(email)
     text = f"[{email}"
-    for _ in range(spaces+2):
-        text += " "
+    text += " "*spaces
     text += f"]: {action}"
     return text
