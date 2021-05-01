@@ -56,19 +56,26 @@ class SingleManagement:
 
     def like_recent_blogs(self):
         comments = open(os.path.join(os.getcwd(), "src", "activity", "comments.txt"), "r", encoding="utf-8").readlines()
-        x = 0
         count = 0
-        while True:
-            blogs = self.sub_client.get_recent_blogs(start=x, size=100)
-            x += 100
-            for blog_id in blogs.blogId:
-                try:
-                    self.sub_client.like_blog(blogId=blog_id)
-                    count += 1
-                    print(f"{count} posts liked", end="\r")
-                    self.sub_client.comment(blogId=blog_id, message=random.choice(comments))
-                except:
-                    pass
+        old = []
+        token = None
+        for x in range(0, 100000, 100):
+            blogs = self.sub_client.get_recent_blogs(pageToken=token, start=x, size=100)
+            token = blogs.nextPageToken
+            if token not in old:
+                old.append(token)
+                for blog_id in blogs.blogId:
+                    if blog_id not in old:
+                        old.append(blog_id)
+                        try:
+                            self.sub_client.like_blog(blogId=blog_id)
+                            count += 1
+                            print(f"{count} posts liked", end="\r")
+                            self.sub_client.comment(blogId=blog_id, message=random.choice(comments))
+                        except:
+                            pass
+            else:
+                break
 
     def follow_all(self):
         old = []
