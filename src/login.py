@@ -79,7 +79,14 @@ def login_sid(account: dict):
 
 def check_sid():
     accounts = get_accounts()
-    bads = [i for i in accounts if i.get("sid") is None or i.get("validTime") <= int(time.time())]
+    bads = []
+    for i in accounts:
+        if i.get("sid") is None:
+            if i.get("isValid") is None:
+                bads.append(i)
+            if i.get("isValid"):
+                if i.get("validTime") <= int(time.time()):
+                    bads.append(i)
     if bads:
         print(f"{len(bads)} invalid accounts, start fixing...")
         pool = ThreadPool(100)
