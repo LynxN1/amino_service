@@ -81,12 +81,12 @@ def check_sid():
     accounts = get_accounts()
     bads = []
     for i in accounts:
-        if i.get("sid") is None:
-            if i.get("isValid") is None:
-                bads.append(i)
-            if i.get("isValid"):
-                if i.get("validTime") <= int(time.time()):
-                    bads.append(i)
+        if i.get("sid") is None or i.get("validTime") is None or i.get("isValid") is None:
+            bads.append(i)
+            continue
+        if i.get("validTime") <= int(time.time()):
+            bads.append(i)
+            continue
     if bads:
         print(f"{len(bads)} invalid accounts, start fixing...")
         pool = ThreadPool(100)
@@ -100,6 +100,6 @@ def update_sid(account: dict):
     password = account.get("password")
     client = login(account)
     if client:
-        return {"email": email, "password": password, "sid": client.sid, "isValid": True, "validTime": int(time.time()) + 129600}
+        return {"email": email, "password": password, "sid": client.sid, "isValid": True, "validTime": int(time.time()) + 43200}
     else:
         return {"email": email, "password": password, "isValid": False}

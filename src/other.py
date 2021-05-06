@@ -36,10 +36,11 @@ def converter():
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.txt"), "r") as bots_file:
         bots = bots_file.readlines()
         accounts = get_accounts()
+        print(accounts)
         if accounts is None:
             accounts = []
         for i in bots:
-            split = i.split(":")
+            split = i.replace(" ", "").split(":")
             accounts.append({"email": split[0], "password": split[1].replace("\n", "")})
     with open(os.path.join(os.getcwd(), "src", "accounts", "bots.yaml"), "w") as accounts_file:
         yaml.dump(accounts, accounts_file, Dumper=yaml.Dumper)
