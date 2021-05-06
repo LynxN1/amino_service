@@ -2,6 +2,6 @@
 **/__pycache__
 tests.py
 auth.json
-accounts.yaml
-accounts.txt
+bots.yaml
+bots.txt
 comments.txt
