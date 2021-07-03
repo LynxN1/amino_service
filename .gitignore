@@ -1,0 +1,7 @@
+.idea/
+venv/
+**/__pycache__
+tests.py
+*.log
+*.db
+*.bat
