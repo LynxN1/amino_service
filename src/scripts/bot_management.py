@@ -235,14 +235,14 @@ class BotManagement(TaskManager):
     async def start(self):
         await check_accounts()
         bots = database.get_bots_cursor()
-        if bots.rowcount <= 0:
+        if len(bots.fetchall()) <= 0:
             raise Exception("Не найдено ботов в базе данных")
         while True:
             try:
                 logger.info(colored(create_table(CATEGORY_NAMES[1], BOTS_MANAGEMENT_MENU), "cyan"))
                 choice = input(CHOICE_ACTION_TEXT)
                 if choice == "s":
-                    logger.info(from_db_cursor(bots))
+                    logger.info(from_db_cursor(database.get_bots_cursor()))
                 if choice == "d":
                     email = input("Почта бота: ")
                     database.remove_bot(email)

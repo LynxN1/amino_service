@@ -29,11 +29,11 @@ async def login(account: tuple):
 
 
 async def login_sid(account: tuple):
-    client = amino_async.Client()
     email = account[0]
     sid = account[2]
     is_valid = account[3]
     if is_valid == 1:
+        client = amino_async.Client()
         while True:
             try:
                 await client.login_sid(sid)
@@ -42,10 +42,12 @@ async def login_sid(account: tuple):
                 client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
             except amino_async.exceptions.VerificationRequired as verify:
                 service_align(email, verify.args[0]["url"], level="error")
+                await client.session.close()
                 return False
             except Exception as e:
                 service_align(email, e.args[0]["api:message"], level="error")
                 file_logger.debug(traceback.format_exc())
+                await client.session.close()
                 return False
 
 
@@ -80,7 +82,6 @@ async def update_sid(account: tuple):
     email = account[0]
     password = account[1]
     client = await login(account)
-    await client.session.close()
     if client:
         service_align(email, "SID обновлён")
         return {"email": email, "password": password, "sid": client.sid, "isValid": True, "validTime": int(time.time()) + 43200}
