@@ -2,8 +2,7 @@ import asyncio
 import time
 import traceback
 
-import amino_async
-from src import database
+from src import database, amino_async
 from src.utils import service_align, logger, file_logger
 
 
@@ -15,9 +14,9 @@ async def login(account: tuple):
         try:
             await client.login(email, password)
             return client
-        except amino_async.exceptions.ActionNotAllowed:
-            client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
-        except amino_async.exceptions.VerificationRequired as verify:
+        except src.amino_async.utils.exceptions.ActionNotAllowed:
+            client.device_id = client.headers.device_id = src.amino_async.device.DeviceGenerator().get_device_id()
+        except src.amino_async.utils.exceptions.VerificationRequired as verify:
             logger.error("[" + email + "]: " + str(verify.args[0]["url"]))
             await client.session.close()
             return False
@@ -38,9 +37,9 @@ async def login_sid(account: tuple):
             try:
                 await client.login_sid(sid)
                 return client
-            except amino_async.exceptions.ActionNotAllowed:
-                client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
-            except amino_async.exceptions.VerificationRequired as verify:
+            except src.amino_async.utils.exceptions.ActionNotAllowed:
+                client.device_id = client.headers.device_id = src.amino_async.device.DeviceGenerator().get_device_id()
+            except src.amino_async.utils.exceptions.VerificationRequired as verify:
                 service_align(email, verify.args[0]["url"], level="error")
                 await client.session.close()
                 return False
@@ -82,6 +81,7 @@ async def update_sid(account: tuple):
     email = account[0]
     password = account[1]
     client = await login(account)
+    await client.session.close()
     if client:
         service_align(email, "SID обновлён")
         return {"email": email, "password": password, "sid": client.sid, "isValid": True, "validTime": int(time.time()) + 43200}

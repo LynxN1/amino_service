@@ -7,8 +7,7 @@ import traceback
 from tabulate import tabulate
 from termcolor import colored
 
-import amino_async
-from src import configs, database
+from src import configs, database, amino_async
 from src.utils import link_identify, service_align, logger, file_logger, UsernameGenerator
 from src.login import login_sid, check_accounts
 
@@ -351,8 +350,9 @@ class BotManagement(TaskManager):
 
     async def change_icon_random(self):
         if not os.path.exists(configs.ICONS_PATH):
-            logger.error("Создайте папку icons и поместите туда изображения")
-            return
+            if not os.path.exists(configs.ICONS_PATH):
+                os.mkdir(configs.ICONS_PATH)
+            raise Exception("Поместите изображения в папку icons")
         current_directory = pathlib.Path(configs.ICONS_PATH)
         images = [x.name for x in current_directory.iterdir()]
         if images:

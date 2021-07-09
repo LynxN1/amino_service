@@ -4,9 +4,8 @@ import traceback
 from tabulate import tabulate
 from termcolor import colored
 
-import amino_async
 from src.utils import get_chat_id, logger, file_logger
-from src import configs
+from src import configs, amino_async
 
 
 class Badass:

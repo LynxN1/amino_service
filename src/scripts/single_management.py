@@ -5,8 +5,7 @@ import traceback
 from tabulate import tabulate
 from termcolor import colored
 
-import amino_async
-from src import configs
+from src import configs, amino_async
 from src.utils import logger, file_logger
 
 

@@ -8,9 +8,8 @@ from collections import OrderedDict
 from tabulate import tabulate
 from termcolor import colored
 
-import amino_async
 from src.utils import get_chat_id, logger, file_logger
-from src import configs
+from src import configs, amino_async
 
 
 class ChatModeration:
@@ -162,6 +161,5 @@ class ChatModeration:
                 rows.append([x, str(i[0]), int(messages), f"{media:.2f}%", f"{stickers:.2f}%", f"{voices:.2f}%"])
             from tabulate import tabulate
             logger.info(tabulate(rows, headers=["№", "Никнейм", "Кол-во сообщений", "Изображения", "Стикеры", "Голосовые"], tablefmt="fancy_grid"))
-            # logger.info(create_table(title="", rows=rows, is_stats=True))
         else:
             logger.warning("Количество дней должно быть в пределах от 1 до 30")

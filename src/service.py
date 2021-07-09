@@ -3,9 +3,7 @@ from typing import Union
 
 from termcolor import colored
 
-import amino_async
-from amino_async import Client, SubClient
-from src import database
+from src import database, amino_async
 from src.utils import convert_from_txt, logger, file_logger
 from src.login import login
 from src.scripts.badass import Badass
@@ -18,8 +16,8 @@ from tabulate import tabulate
 
 class ServiceApp:
 
-    sub_client: SubClient
-    client: Union[Client, bool]
+    sub_client: amino_async.SubClient
+    client: Union[amino_async.Client, bool]
 
     async def start(self):
         while True:

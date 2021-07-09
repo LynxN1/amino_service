@@ -5,8 +5,7 @@ import sys
 
 import coloredlogs
 
-import amino_async
-from src import configs, database
+from src import configs, database, amino_async
 
 logger = logging.getLogger('logger')
 logger.setLevel(logging.INFO)
