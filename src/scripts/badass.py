@@ -1,13 +1,12 @@
 import asyncio
 import traceback
 
+from tabulate import tabulate
 from termcolor import colored
 
 import amino_async
-from src.utils.chat import get_chat_id
-from src.utils.configs import BADASS_MENU, CATEGORY_NAMES, CHOICE_ACTION_TEXT
-from src.utils.logger import logger, file_logger
-from src.utils.table import create_table
+from src.utils import get_chat_id, logger, file_logger
+from src import configs
 
 
 class Badass:
@@ -17,8 +16,12 @@ class Badass:
     async def start(self):
         while True:
             try:
-                logger.info(colored(create_table(CATEGORY_NAMES[3], BADASS_MENU), "cyan"))
-                choice = input(CHOICE_ACTION_TEXT)
+                logger.info(colored(tabulate(
+                    configs.BADASS_MENU,
+                    headers=[configs.CATEGORY_NAMES[3]],
+                    tablefmt="fancy_grid"
+                ), "cyan"))
+                choice = input(configs.CHOICE_ACTION_TEXT)
                 if choice == "1":
                     await self.send_system_message(await get_chat_id(self.sub_client))
                 if choice == "2":
@@ -55,8 +58,7 @@ class Badass:
             await asyncio.gather(*[asyncio.create_task(self.sub_client.send_message(message, message_type, chatid)) for _ in range(100)])
 
     async def invite_all_users(self, chatid: str):
-        admins = await self.sub_client.get_all_users(type="leaders", start=0, size=100)
-        admins2 = await self.sub_client.get_all_users(type="curators", start=0, size=100)
+        admins, admins2 = await self.sub_client.get_all_users(type="leaders", start=0, size=100), await self.sub_client.get_all_users(type="curators", start=0, size=100)
 
         async def start_invite(user_id):
             if user_id not in [*admins.profile.userId, *admins2.profile.userId]:

@@ -5,16 +5,15 @@ from termcolor import colored
 
 import amino_async
 from amino_async import Client, SubClient
-from src.utils import database
-from src.utils.converter import convert_from_txt
-from src.utils.logger import logger, file_logger
-from src.utils.login import login
+from src import database
+from src.utils import convert_from_txt, logger, file_logger
+from src.login import login
 from src.scripts.badass import Badass
 from src.scripts.bot_management import BotManagement
 from src.scripts.chat_moderation import ChatModeration
 from src.scripts.single_management import SingleManagement
-from src.utils.configs import MAIN_MENU, CHOICE_ACTION_TEXT
-from src.utils.table import create_table
+from src.configs import MAIN_MENU, CHOICE_ACTION_TEXT
+from tabulate import tabulate
 
 
 class ServiceApp:
@@ -27,9 +26,13 @@ class ServiceApp:
             accounts = database.get_auth_data()
             if accounts:
                 logger.info("Аккаунты:")
-                for x, account in enumerate(accounts, 1):
-                    logger.info(f"{x}. {account[0]}")
-                choice = input("\n" + "Введите \"+\" чтобы добавить новый аккаунт, или \"-\" для удаления " + "\n" + ">>> ")
+                logger.info(tabulate(
+                    [[x, z[0], z[1]] for x, z in enumerate(accounts, 1)],
+                    headers=["Почта", "Пароль"],
+                    tablefmt="fancy_grid"
+                ))
+                logger.info("Введите \"+\" чтобы добавить новый аккаунт, или \"-\" для удаления " + "\n")
+                choice = input("Выберите аккаунт: ")
                 if choice == "+":
                     email = input("Почта: ")
                     password = input("Пароль: ")
@@ -58,9 +61,12 @@ class ServiceApp:
 
         subs = await self.client.sub_clients(start=0, size=100)
         if subs.comId:
-            for x, com_name in enumerate(subs.name, 1):
-                logger.info(f"{x}. {com_name}")
-            com_index = int(input("Введите номер сообщества: "))
+            logger.info(tabulate(
+                [[x, z] for x, z in enumerate(subs.name, 1)],
+                headers=["Сообщество"],
+                tablefmt="fancy_grid"
+            ))
+            com_index = int(input("Выберите сообщество: "))
             self.sub_client = amino_async.SubClient(comId=subs.comId[com_index - 1], client=self.client)
             await self.run()
         else:
@@ -70,7 +76,11 @@ class ServiceApp:
     async def run(self):
         while True:
             try:
-                logger.info(colored(create_table("Меню", MAIN_MENU), "cyan"))
+                logger.info(colored(tabulate(
+                    MAIN_MENU,
+                    headers=["Главное меню"],
+                    tablefmt="fancy_grid"
+                ), "cyan"))
                 management_choice = input(CHOICE_ACTION_TEXT)
                 if management_choice == "1":
                     await SingleManagement(self.sub_client).start()

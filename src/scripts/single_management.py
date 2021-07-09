@@ -2,12 +2,12 @@ import asyncio
 import random
 import traceback
 
+from tabulate import tabulate
 from termcolor import colored
 
 import amino_async
-from src.utils.configs import MAIN_ACCOUNT_MENU, CATEGORY_NAMES, CHOICE_ACTION_TEXT
-from src.utils.logger import logger, file_logger
-from src.utils.table import create_table
+from src import configs
+from src.utils import logger, file_logger
 
 
 class SingleManagement:
@@ -17,8 +17,12 @@ class SingleManagement:
     async def start(self):
         while True:
             try:
-                logger.info(colored(create_table(CATEGORY_NAMES[0], MAIN_ACCOUNT_MENU), "cyan"))
-                choice = input(CHOICE_ACTION_TEXT)
+                logger.info(colored(tabulate(
+                    configs.MAIN_ACCOUNT_MENU,
+                    headers=[configs.CATEGORY_NAMES[0]],
+                    tablefmt="fancy_grid"
+                ), "cyan"))
+                choice = input(configs.CHOICE_ACTION_TEXT)
                 if choice == "1":
                     await self.play_quiz()
                 if choice == "2":

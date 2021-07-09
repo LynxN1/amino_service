@@ -37,7 +37,8 @@ class Client:
         })
         result = await self.session.post(f"{self.api}/g/s/auth/login", headers=self.headers.headers(data=data), data=data)
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             self.json = await result.json()
             self.userId = self.json["auid"]
@@ -57,7 +58,8 @@ class Client:
     async def get_user_info(self, userId: str):
         result = await self.session.get(f"{self.api}/g/s/user-profile/{userId}", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.UserProfile(json_result["userProfile"]).UserProfile
@@ -65,7 +67,8 @@ class Client:
     async def get_community_info(self, comId: str):
         result = await self.session.get(f"{self.api}/g/s-x{comId}/community/info?withInfluencerList=1&withTopicList=true&influencerListOrderStrategy=fansCount", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.Community(json_result["community"]).Community
@@ -80,7 +83,8 @@ class Client:
         data = file.read()
         result = await self.session.post(f"{self.api}/g/s/media/upload", data=data, headers=self.headers.headers(content_type=t, data=data))
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return json_result["mediaValue"]
@@ -88,7 +92,8 @@ class Client:
     async def sub_clients(self, start: int = 0, size: int = 25):
         result = await self.session.get(f"{self.api}/g/s/community/joined?v=1&start={start}&size={size}", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.CommunityList(json_result["communityList"]).CommunityList
@@ -100,7 +105,8 @@ class Client:
         data = json.dumps(data)
         result = await self.session.post(f"{self.api}/x{comId}/s/community/join", data=data, headers=self.headers.headers(data=data))
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             return await result.json()
 
@@ -135,14 +141,16 @@ class Client:
         data = json.dumps(data)
         result = await self.session.post(f"{self.api}/g/s/user-profile/{self.userId}", headers=self.headers.headers(data=data), data=data)
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             return result.json()
 
     async def get_wallet_info(self):
         result = await self.session.get(f"{self.api}/g/s/wallet", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.WalletInfo(json_result["wallet"]).WalletInfo
@@ -150,7 +158,8 @@ class Client:
     async def get_wallet_history(self, start: int = 0, size: int = 25):
         result = await self.session.get(f"{self.api}/g/s/wallet/coin/history?start={start}&size={size}", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.WalletHistory(json_result["coinHistoryList"]).WalletHistory
@@ -158,7 +167,8 @@ class Client:
     async def get_from_code(self, code: str):
         result = await self.session.get(f"{self.api}/g/s/link-resolution?q={code}", headers=self.headers.headers())
         if result.status != 200:
-            return exceptions.CheckException(await result.json())
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
         else:
             json_result = await result.json()
             return objects.FromCode(json_result["linkInfoV2"]).FromCode

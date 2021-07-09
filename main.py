@@ -9,7 +9,7 @@ import requests
 from colorama import init
 from termcolor import colored
 
-from src.utils.logger import logger, file_logger
+from src.utils import logger, file_logger
 from src.service import ServiceApp
 
 

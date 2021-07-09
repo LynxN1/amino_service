@@ -8,11 +8,11 @@ coloredlogs==15.0.1
 humanfriendly==9.2
 idna==2.10
 multidict==5.1.0
-prettytable==2.1.0
 pyfiglet==0.8.post1
+pyreadline==2.1
 requests==2.25.1
+tabulate==0.8.9
 termcolor==1.1.0
 typing-extensions==3.10.0.0
 urllib3==1.26.6
-wcwidth==0.2.5
 yarl==1.6.3

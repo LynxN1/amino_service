@@ -1,15 +1,16 @@
 import asyncio
+import datetime
 import os
 import time
 import traceback
+from collections import OrderedDict
 
+from tabulate import tabulate
 from termcolor import colored
 
 import amino_async
-from src.utils.chat import get_chat_id
-from src.utils.logger import logger, file_logger
-from src.utils.configs import CHAT_SETTINGS_PATH, CHAT_MODERATION_MENU, CATEGORY_NAMES, CHOICE_ACTION_TEXT
-from src.utils.table import create_table
+from src.utils import get_chat_id, logger, file_logger
+from src import configs
 
 
 class ChatModeration:
@@ -19,8 +20,12 @@ class ChatModeration:
     async def start(self):
         while True:
             try:
-                logger.info(colored(create_table(CATEGORY_NAMES[2], CHAT_MODERATION_MENU), "cyan"))
-                choice = input(CHOICE_ACTION_TEXT)
+                logger.info(colored(tabulate(
+                    configs.CHAT_MODERATION_MENU,
+                    headers=[configs.CATEGORY_NAMES[2]],
+                    tablefmt="fancy_grid"
+                ), "cyan"))
+                choice = input(configs.CHOICE_ACTION_TEXT)
                 if choice == "1":
                     await self.clear_chat(await get_chat_id(self.sub_client))
                 if choice == "2":
@@ -29,6 +34,8 @@ class ChatModeration:
                     await self.set_view_mode(await get_chat_id(self.sub_client))
                 if choice == "4":
                     await self.set_view_mode_timer(await get_chat_id(self.sub_client))
+                if choice == "5":
+                    await self.check_stats(await get_chat_id(self.sub_client))
                 if choice == "b":
                     break
             except Exception as e:
@@ -60,9 +67,9 @@ class ChatModeration:
             logger.info(f"Удалено {deleted} сообщений")
 
     async def save_chat_settings(self, chatid: str):
-        if not os.path.exists(CHAT_SETTINGS_PATH):
-            os.mkdir(CHAT_SETTINGS_PATH)
-        with open(os.path.join(CHAT_SETTINGS_PATH, f"{chatid}.txt"), "w", encoding="utf-8") as settings_file:
+        if not os.path.exists(configs.CHAT_SETTINGS_PATH):
+            os.mkdir(configs.CHAT_SETTINGS_PATH)
+        with open(os.path.join(configs.CHAT_SETTINGS_PATH, f"{chatid}.txt"), "w", encoding="utf-8") as settings_file:
             chat = await self.sub_client.get_chat_thread(chatId=chatid)
             data = "====================Title====================\n" \
                    f"{chat.title}\n\n" \
@@ -80,7 +87,7 @@ class ChatModeration:
                 for i in chat.userAddedTopicList:
                     data += f"{i.get('name')}\nColor: {i.get('style').get('backgroundColor')}\n"
             settings_file.write(data)
-        logger.info(f"Настройки сохранены по этому пути: {os.path.join(CHAT_SETTINGS_PATH, f'{chatid}.txt')}")
+        logger.info(f"Настройки сохранены по этому пути: {os.path.join(configs.CHAT_SETTINGS_PATH, f'{chatid}.txt')}")
 
     async def set_view_mode(self, chatid: str):
         chat = await self.sub_client.get_chat_thread(chatId=chatid)
@@ -106,3 +113,55 @@ class ChatModeration:
             logger.info("Режим просмотра отключён")
         else:
             logger.error("У вас нет прав помощника")
+
+    async def check_stats(self, chatid: str):
+        days_count = int(input("Количество дней(1-30): "))
+        if 1 <= days_count <= 30:
+            days = datetime.timedelta(days_count)
+            tokens = []
+            stats = {}
+            rows = []
+            back = False
+            page_token = None
+            logger.info(f"Анализ активности чата за {days_count} дней...")
+            while not back:
+                messages = await self.sub_client.get_chat_messages(chatId=chatid, pageToken=page_token, size=100)
+                page_token = messages.nextPageToken
+                for message_id, created_time, nick, media_type, user_id in zip(messages.messageId, messages.createdTime,
+                                                                               messages.author.nickname,
+                                                                               messages.mediaType, messages.author.userId):
+                    if datetime.datetime.strptime(created_time, "%Y-%m-%dT%H:%M:%SZ").date() <= datetime.date(
+                            datetime.datetime.today().year, datetime.datetime.today().month,
+                            datetime.datetime.today().day) - days or page_token in tokens:
+                        back = True
+                    else:
+                        short_nick = nick[0:20]
+                        if stats.get(short_nick) is None:
+                            stats[short_nick] = {"messages": 1, "media": 0, "voices": 0, "stickers": 0}
+                            if media_type == 113:
+                                stats[short_nick]["stickers"] += 1
+                            elif media_type == 110:
+                                stats[short_nick]["voices"] += 1
+                            elif media_type == 100:
+                                stats[short_nick]["media"] += 1
+                        else:
+                            stats[short_nick]["messages"] += 1
+                            if media_type == 113:
+                                stats[short_nick]["stickers"] += 1
+                            elif media_type == 110:
+                                stats[short_nick]["voices"] += 1
+                            elif media_type == 100:
+                                stats[short_nick]["media"] += 1
+                tokens.append(page_token)
+            sorted_stats = OrderedDict(sorted(stats.items(), key=lambda z: z[1]["messages"], reverse=True))
+            for x, i in enumerate(sorted_stats.items(), 1):
+                messages = i[1].get("messages")
+                media = i[1].get("media") / messages * 100
+                stickers = i[1].get("stickers") / messages * 100
+                voices = i[1].get("voices") / messages * 100
+                rows.append([x, str(i[0]), int(messages), f"{media:.2f}%", f"{stickers:.2f}%", f"{voices:.2f}%"])
+            from tabulate import tabulate
+            logger.info(tabulate(rows, headers=["№", "Никнейм", "Кол-во сообщений", "Изображения", "Стикеры", "Голосовые"], tablefmt="fancy_grid"))
+            # logger.info(create_table(title="", rows=rows, is_stats=True))
+        else:
+            logger.warning("Количество дней должно быть в пределах от 1 до 30")

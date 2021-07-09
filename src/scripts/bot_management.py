@@ -4,16 +4,13 @@ import pathlib
 import random
 import traceback
 
-from prettytable import from_db_cursor
+from tabulate import tabulate
 from termcolor import colored
 
 import amino_async
-from src.utils import configs, database
-from src.utils.configs import ICONS_PATH, BOTS_MANAGEMENT_MENU, CATEGORY_NAMES, CHOICE_ACTION_TEXT
-from src.utils.logger import service_align, logger, file_logger
-from src.utils.login import login_sid, check_accounts
-from src.utils.nick_gen import UsernameGenerator
-from src.utils.table import create_table
+from src import configs, database
+from src.utils import link_identify, service_align, logger, file_logger, UsernameGenerator
+from src.login import login_sid, check_accounts
 
 
 class TaskManager:
@@ -100,16 +97,19 @@ class TaskManager:
         finally:
             await client.session.close()
 
-    async def join_bots_to_community_task(self, account: tuple, com_id: str, inv_id: str = None):
+    async def join_bots_to_community_task(self, account: tuple, com_id: str, inv_code: str = None):
         email = account[0]
         client = await login_sid(account)
         if not client:
             return
         try:
-            if inv_id:
-                await client.join_community(comId=com_id, invitationId=inv_id)
-                service_align(email, "Зашел в сообщество")
-            if inv_id is None:
+            if inv_code:
+                inv_from_code = await client.link_identify(code=inv_code)
+                invitation_id = inv_from_code.get("invitationId")
+                if invitation_id:
+                    await client.join_community(comId=com_id, invitationId=invitation_id)
+                    service_align(email, "Зашел в сообщество")
+            if inv_code is None:
                 await client.join_community(comId=com_id)
                 service_align(email, "Зашел в сообщество")
         except Exception as e:
@@ -202,7 +202,7 @@ class TaskManager:
             return
         try:
             sub_client = amino_async.SubClient(comId=com_id, client=client)
-            icon = client.upload_media(open(os.path.join(ICONS_PATH, f"{random.choice(images)}"), "rb"), "image")
+            icon = await client.upload_media(open(os.path.join(configs.ICONS_PATH, f"{random.choice(images)}"), "rb"), "image")
             await sub_client.edit_profile(icon=icon)
             service_align(email, "Аватарка изменена")
         except Exception as e:
@@ -239,10 +239,18 @@ class BotManagement(TaskManager):
             raise Exception("Не найдено ботов в базе данных")
         while True:
             try:
-                logger.info(colored(create_table(CATEGORY_NAMES[1], BOTS_MANAGEMENT_MENU), "cyan"))
-                choice = input(CHOICE_ACTION_TEXT)
+                logger.info(colored(tabulate(
+                    configs.BOTS_MANAGEMENT_MENU,
+                    headers=[configs.CATEGORY_NAMES[1]],
+                    tablefmt="fancy_grid"
+                ), "cyan"))
+                choice = input(configs.CHOICE_ACTION_TEXT)
                 if choice == "s":
-                    logger.info(from_db_cursor(database.get_bots_cursor()))
+                    logger.info(tabulate(
+                        [[x, z[0], z[1], z[2], z[3], z[4]] for x, z in enumerate(database.get_bots(), 1)],
+                        headers=["Email", "Password", "SID", "is_valid", "valid_time"],
+                        tablefmt="fancy_grid"
+                    ))
                 if choice == "d":
                     email = input("Почта бота: ")
                     database.remove_bot(email)
@@ -284,9 +292,8 @@ class BotManagement(TaskManager):
         logger.info(f"Аккаунты: {len(result)}\nРезультат: +{sum(result)} АМ")
 
     async def send_coins(self):
-        blog_link = input("Ссылка на пост: ")
-        from_code = await self.sub_client.client.get_from_code(str(blog_link.split('/')[-1]))
-        result = await asyncio.gather(*[asyncio.create_task(self.send_coins_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        result = await asyncio.gather(*[asyncio.create_task(self.send_coins_task(i, object_id, self.com_id)) for i in database.get_bots()])
         logger.info(f"Аккаунты: {len(result)}\nРезультат: +{sum(result)} АМ")
 
     async def like_blog(self):
@@ -295,14 +302,12 @@ class BotManagement(TaskManager):
         await asyncio.gather(*[asyncio.create_task(self.like_blog_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
 
     async def join_bots_to_chat(self):
-        object_link = input("Ссылка: ")
-        from_code = await self.sub_client.client.get_from_code(str(object_link.split('/')[-1]))
-        await asyncio.gather(*[asyncio.create_task(self.join_bots_to_chat_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        await asyncio.gather(*[asyncio.create_task(self.join_bots_to_chat_task(i, object_id, self.com_id)) for i in database.get_bots()])
 
     async def leave_bots_from_chat(self):
-        object_link = input("Ссылка: ")
-        from_code = await self.sub_client.client.get_from_code(str(object_link.split('/')[-1]))
-        await asyncio.gather(*[asyncio.create_task(self.leave_bots_from_chat_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        await asyncio.gather(*[asyncio.create_task(self.leave_bots_from_chat_task(i, object_id, self.com_id)) for i in database.get_bots()])
 
     async def join_bots_to_community(self):
         subs = await self.sub_client.client.sub_clients(start=0, size=100)
@@ -311,32 +316,27 @@ class BotManagement(TaskManager):
         object_id = subs.comId[int(input("Введите номер сообщества: ")) - 1]
         from_code = await self.sub_client.client.get_community_info(object_id)
         if from_code.joinType == 2:
-            invite_link = input("Введите код/ссылка приглашения: ")
-            inv_from_code = await self.sub_client.client.link_identify(code=str(invite_link.split("/")[-1]))
+            invite_code = input("Введите код приглашения: ")
         else:
-            inv_from_code = None
-        await asyncio.gather(*[asyncio.create_task(self.join_bots_to_community_task(i, from_code.comId, inv_from_code.get("invitationId"))) for i in database.get_bots()])
+            invite_code = None
+        await asyncio.gather(*[asyncio.create_task(self.join_bots_to_community_task(i, from_code.comId, invite_code)) for i in database.get_bots()])
 
     async def send_message(self):
-        object_link = input("Ссылка: ")
-        from_code = await self.sub_client.client.get_from_code(str(object_link.split('/')[-1]))
+        object_id = await link_identify(self.sub_client)
         text = input("Текст: ")
-        await asyncio.gather(*[asyncio.create_task(self.send_message_task(i, from_code.objectId, text, self.com_id)) for i in database.get_bots()])
+        await asyncio.gather(*[asyncio.create_task(self.send_message_task(i, object_id, text, self.com_id)) for i in database.get_bots()])
 
     async def follow(self):
-        user_link = input("Ссылка на пользователя: ")
-        from_code = await self.sub_client.client.get_from_code(str(user_link.split('/')[-1]))
-        await asyncio.gather(*[asyncio.create_task(self.follow_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        await asyncio.gather(*[asyncio.create_task(self.follow_task(i, object_id, self.com_id)) for i in database.get_bots()])
 
     async def unfollow(self):
-        user_link = input("Ссылка на пользователя: ")
-        from_code = await self.sub_client.client.get_from_code(str(user_link.split('/')[-1]))
-        await asyncio.gather(*[asyncio.create_task(self.unfollow_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        await asyncio.gather(*[asyncio.create_task(self.unfollow_task(i, object_id, self.com_id)) for i in database.get_bots()])
 
     async def start_chat(self):
-        object_link = input("Ссылка на пользователя: ")
-        from_code = await self.sub_client.client.get_from_code(str(object_link.split('/')[-1]))
-        await asyncio.gather(*[asyncio.create_task(self.start_chat_task(i, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        object_id = await link_identify(self.sub_client)
+        await asyncio.gather(*[asyncio.create_task(self.start_chat_task(i, object_id, self.com_id)) for i in database.get_bots()])
 
     async def change_nick_random(self):
         logger.info("1 - Рандомный ник")
@@ -350,15 +350,17 @@ class BotManagement(TaskManager):
             await asyncio.gather(*[asyncio.create_task(self.change_nick_random_task(i, None, nick, self.com_id)) for i in database.get_bots()])
 
     async def change_icon_random(self):
+        if not os.path.exists(configs.ICONS_PATH):
+            logger.error("Создайте папку icons и поместите туда изображения")
+            return
         current_directory = pathlib.Path(configs.ICONS_PATH)
         images = [x.name for x in current_directory.iterdir()]
         if images:
             await asyncio.gather(*[asyncio.create_task(self.change_icon_random_task(i, images, self.com_id)) for i in database.get_bots()])
         else:
-            logger.error("icons пустой")
+            logger.error("Папка icons не имеет изображений")
 
     async def wall_comment(self):
-        user_link = input("Ссылка на пользователя: ")
-        from_code = await self.sub_client.client.get_from_code(str(user_link.split('/')[-1]))
+        object_id = await link_identify(self.sub_client)
         text = input("Текст: ")
-        await asyncio.gather(*[asyncio.create_task(self.wall_comment_task(i, text, from_code.objectId, self.com_id)) for i in database.get_bots()])
+        await asyncio.gather(*[asyncio.create_task(self.wall_comment_task(i, text, object_id, self.com_id)) for i in database.get_bots()])
