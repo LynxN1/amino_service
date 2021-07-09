@@ -246,8 +246,8 @@ class BotManagement(TaskManager):
                 choice = input(configs.CHOICE_ACTION_TEXT)
                 if choice == "s":
                     logger.info(tabulate(
-                        [[x, z[0], z[1], z[2], z[3], z[4]] for x, z in enumerate(database.get_bots(), 1)],
-                        headers=["Email", "Password", "SID", "is_valid", "valid_time"],
+                        [[x, z[0], z[1], str(z[3]).replace("0", "false").replace("1", "true"), z[4]] for x, z in enumerate(database.get_bots(), 1)],
+                        headers=["Email", "Password", "is_valid", "valid_time"],
                         tablefmt="fancy_grid"
                     ))
                 if choice == "d":
