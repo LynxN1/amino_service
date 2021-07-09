@@ -14,9 +14,9 @@ async def login(account: tuple):
         try:
             await client.login(email, password)
             return client
-        except src.amino_async.utils.exceptions.ActionNotAllowed:
-            client.device_id = client.headers.device_id = src.amino_async.device.DeviceGenerator().get_device_id()
-        except src.amino_async.utils.exceptions.VerificationRequired as verify:
+        except amino_async.utils.exceptions.ActionNotAllowed:
+            client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
+        except amino_async.utils.exceptions.VerificationRequired as verify:
             logger.error("[" + email + "]: " + str(verify.args[0]["url"]))
             await client.session.close()
             return False
@@ -37,9 +37,9 @@ async def login_sid(account: tuple):
             try:
                 await client.login_sid(sid)
                 return client
-            except src.amino_async.utils.exceptions.ActionNotAllowed:
-                client.device_id = client.headers.device_id = src.amino_async.device.DeviceGenerator().get_device_id()
-            except src.amino_async.utils.exceptions.VerificationRequired as verify:
+            except amino_async.utils.exceptions.ActionNotAllowed:
+                client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
+            except amino_async.utils.exceptions.VerificationRequired as verify:
                 service_align(email, verify.args[0]["url"], level="error")
                 await client.session.close()
                 return False
