@@ -27,6 +27,19 @@ class SubClient:
         else:
             return await result.json()
 
+    async def kick(self, userId: str, chatId: str, allowRejoin: bool = True):
+        if allowRejoin:
+            allowRejoin = 1
+        if not allowRejoin:
+            allowRejoin = 0
+        result = self.client.session.delete(f"{self.client.api}/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={allowRejoin}", headers=self.client.headers.headers())
+        if result.status != 200:
+            json_result = await result.json()
+            return exceptions.CheckException(json_result)
+        else:
+            json_result = await result.json()
+            return json_result
+
     async def lottery(self, tz: str = -time.timezone // 1000):
         data = json.dumps({
             "timezone": tz,

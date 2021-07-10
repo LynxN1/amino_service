@@ -81,9 +81,9 @@ async def update_sid(account: tuple):
     email = account[0]
     password = account[1]
     client = await login(account)
-    await client.session.close()
     if client:
         service_align(email, "SID обновлён")
+        await client.session.close()
         return {"email": email, "password": password, "sid": client.sid, "isValid": True, "validTime": int(time.time()) + 43200}
     else:
         return {"email": email, "password": password, "isValid": False}

@@ -5,6 +5,7 @@ import time
 import traceback
 from collections import OrderedDict
 
+import aiohttp
 from tabulate import tabulate
 from termcolor import colored
 
@@ -124,7 +125,10 @@ class ChatModeration:
             page_token = None
             logger.info(f"Анализ активности чата за {days_count} дней...")
             while not back:
-                messages = await self.sub_client.get_chat_messages(chatId=chatid, pageToken=page_token, size=100)
+                try:
+                    messages = await self.sub_client.get_chat_messages(chatId=chatid, pageToken=page_token, size=100)
+                except aiohttp.ContentTypeError:
+                    messages = await self.sub_client.get_chat_messages(chatId=chatid, pageToken=page_token, size=100)
                 page_token = messages.nextPageToken
                 for message_id, created_time, nick, media_type, user_id in zip(messages.messageId, messages.createdTime,
                                                                                messages.author.nickname,
@@ -134,9 +138,12 @@ class ChatModeration:
                             datetime.datetime.today().day) - days or page_token in tokens:
                         back = True
                     else:
-                        short_nick = nick[0:20]
+                        try:
+                            short_nick = nick[0:10]
+                        except TypeError:
+                            short_nick = "null"
                         if stats.get(short_nick) is None:
-                            stats[short_nick] = {"messages": 1, "media": 0, "voices": 0, "stickers": 0}
+                            stats[short_nick] = {"messages": 1, "media": 0, "voices": 0, "stickers": 0, "user_id": user_id}
                             if media_type == 113:
                                 stats[short_nick]["stickers"] += 1
                             elif media_type == 110:
@@ -154,12 +161,28 @@ class ChatModeration:
                 tokens.append(page_token)
             sorted_stats = OrderedDict(sorted(stats.items(), key=lambda z: z[1]["messages"], reverse=True))
             for x, i in enumerate(sorted_stats.items(), 1):
+                user_id = i[1].get("user_id")
                 messages = i[1].get("messages")
                 media = i[1].get("media") / messages * 100
                 stickers = i[1].get("stickers") / messages * 100
                 voices = i[1].get("voices") / messages * 100
-                rows.append([x, str(i[0]), int(messages), f"{media:.2f}%", f"{stickers:.2f}%", f"{voices:.2f}%"])
-            from tabulate import tabulate
-            logger.info(tabulate(rows, headers=["№", "Никнейм", "Кол-во сообщений", "Изображения", "Стикеры", "Голосовые"], tablefmt="fancy_grid"))
+                rows.append([x, str(i[0]), user_id, int(messages), f"{media:.2f}%", f"{stickers:.2f}%", f"{voices:.2f}%"])
+            logger.info(tabulate(rows, headers=["№", "Никнейм", "User ID", "Кол-во сообщений", "Изображения", "Стикеры", "Голосовые"], tablefmt="fancy_grid"))
+            clear_chat_choice = input("Очистить не активных участников?(+/-): ")
+            if clear_chat_choice == "+":
+                chat_users = []
+                for i in range(0, 10000, 100):
+                    users = await self.sub_client.get_chat_users(chatid, i, 100)
+                    if users.userId:
+                        chat_users.append(users.userId)
+                    else:
+                        break
+                admins = await self.sub_client.get_chat_thread(chatid)
+                for i in chat_users:
+                    if i in admins.coHosts or i == admins.author.userId:
+                        chat_users.remove(i)
+                active_users = [i[2] for i in rows]
+                to_remove = [i for i in chat_users if i not in active_users]
+                await asyncio.gather(*[asyncio.create_task(self.sub_client.kick(i, chatid)) for i in to_remove])
         else:
             logger.warning("Количество дней должно быть в пределах от 1 до 30")
