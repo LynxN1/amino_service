@@ -9,8 +9,8 @@ import aiohttp
 from tabulate import tabulate
 from termcolor import colored
 
-from src.utils import get_chat_id, logger, file_logger
 from src import configs, amino_async
+from src.utils import get_chat_id, logger, file_logger
 
 
 class ChatModeration:
@@ -174,7 +174,7 @@ class ChatModeration:
                 for i in range(0, 10000, 100):
                     users = await self.sub_client.get_chat_users(chatid, i, 100)
                     if users.userId:
-                        chat_users.append(users.userId)
+                        chat_users += users.userId
                     else:
                         break
                 admins = await self.sub_client.get_chat_thread(chatid)
@@ -184,5 +184,6 @@ class ChatModeration:
                 active_users = [i[2] for i in rows]
                 to_remove = [i for i in chat_users if i not in active_users]
                 await asyncio.gather(*[asyncio.create_task(self.sub_client.kick(i, chatid)) for i in to_remove])
+                logger.info(f"Удалено {len(to_remove)} участников")
         else:
             logger.warning("Количество дней должно быть в пределах от 1 до 30")

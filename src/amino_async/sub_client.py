@@ -6,6 +6,8 @@ from os import urandom
 from typing import BinaryIO
 from uuid import UUID
 
+import aiohttp
+
 from . import Client
 from .utils import exceptions, objects
 
@@ -32,7 +34,7 @@ class SubClient:
             allowRejoin = 1
         if not allowRejoin:
             allowRejoin = 0
-        result = self.client.session.delete(f"{self.client.api}/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={allowRejoin}", headers=self.client.headers.headers())
+        result = await self.client.session.delete(f"{self.client.api}/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={allowRejoin}", headers=self.client.headers.headers())
         if result.status != 200:
             json_result = await result.json()
             return exceptions.CheckException(json_result)
@@ -124,7 +126,8 @@ class SubClient:
                 json_result = await result.json()
                 return exceptions.CheckException(json_result)
             else:
-                return objects.GetBlogInfo(await result.json()).GetBlogInfo
+                json_result = await result.json()
+                return objects.GetBlogInfo(json_result).GetBlogInfo
 
         elif wikiId:
             result = await self.client.session.get(f"{self.client.api}/x{self.comId}/s/item/{wikiId}", headers=self.client.headers.headers())
@@ -132,7 +135,8 @@ class SubClient:
                 json_result = await result.json()
                 return exceptions.CheckException(json_result)
             else:
-                return objects.GetWikiInfo(await result.json()).GetWikiInfo
+                json_result = await result.json()
+                return objects.GetWikiInfo(json_result).GetWikiInfo
 
         elif fileId:
             result = await self.client.session.get(f"{self.client.api}/x{self.comId}/s/shared-folder/files/{fileId}", headers=self.client.headers.headers())
@@ -152,10 +156,15 @@ class SubClient:
             url = f"{self.client.api}/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}"
         result = await self.client.session.get(url, headers=self.client.headers.headers())
         if result.status != 200:
-            json_result = await result.json()
+            try:
+                json_result = await result.json()
+            except aiohttp.ContentTypeError:
+                print(await result.text())
+                json_result = await result.json()
             return exceptions.CheckException(json_result)
         else:
-            return objects.GetMessages(await result.json()).GetMessages
+            json_result = await result.json()
+            return objects.GetMessages(json_result).GetMessages
 
     async def delete_message(self, chatId: str, messageId: str, asStaff: bool = False, reason: str = None):
         data = {
@@ -338,7 +347,8 @@ class SubClient:
             json_result = await result.json()
             return exceptions.CheckException(json_result)
         else:
-            return objects.QuizRankings(await result.json()).QuizRankings
+            json_result = await result.json()
+            return objects.QuizRankings(json_result).QuizRankings
 
     async def get_user_following(self, userId: str, start: int = 0, size: int = 25):
         result = await self.client.session.get(f"{self.client.api}/x{self.comId}/s/user-profile/{userId}/joined?start={start}&size={size}", headers=self.client.headers.headers())
@@ -686,7 +696,8 @@ class SubClient:
             json_result = await result.json()
             return exceptions.CheckException(json_result)
         else:
-            return objects.UserProfileCountList(await result.json()).UserProfileCountList
+            json_result = await result.json()
+            return objects.UserProfileCountList(json_result).UserProfileCountList
 
     async def get_online_users(self, start: int = 0, size: int = 25):
         result = await self.client.session.get(f"{self.client.api}/x{self.comId}/s/live-layer?topic=ndtopic:x{self.comId}:online-members&start={start}&size={size}", headers=self.client.headers.headers())
@@ -694,7 +705,8 @@ class SubClient:
             json_result = await result.json()
             return exceptions.CheckException(json_result)
         else:
-            return objects.UserProfileCountList(await result.json()).UserProfileCountList
+            json_result = await result.json()
+            return objects.UserProfileCountList(json_result).UserProfileCountList
 
     async def get_user_info(self, userId: str):
         result = await self.client.session.get(f"{self.client.api}/x{self.comId}/s/user-profile/{userId}", headers=self.client.headers.headers())
