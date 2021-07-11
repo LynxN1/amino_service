@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 import traceback
 
 from tabulate import tabulate
@@ -34,6 +35,12 @@ class SingleManagement:
                     await self.get_blocker_users()
                 if choice == "6":
                     await self.send_coins()
+                if choice == "7":
+                    await self.check_in_all_subs()
+                if choice == "8":
+                    await self.wall_comment_all_online_users()
+                if choice == "9":
+                    await self.wall_comment_all_latest_users()
                 if choice == "b":
                     break
             except Exception as e:
@@ -201,3 +208,50 @@ class SingleManagement:
         except Exception as e:
             logger.error(e.args[0]["api:message"])
             return
+
+    async def check_in_all_subs(self):
+        subs = await self.sub_client.client.sub_clients(start=0, size=100)
+        tasks = [asyncio.create_task(amino_async.SubClient(comId=i, client=self.sub_client.client).check_in()) for i in subs.comId]
+        for i, com_id in zip(tasks, subs.comId):
+            try:
+                await asyncio.gather(i)
+                logger.info(f"[{com_id}]: отмечен")
+            except Exception as e:
+                logger.error("[" + str(com_id) + "]: " + e.args[0]["api:message"])
+        # await asyncio.gather(*[asyncio.create_task(amino_async.SubClient(comId=i, client=self.sub_client.client).check_in()) for i in subs.comId])
+
+    async def wall_comment_all_online_users(self):
+        logger.warning("Комментарии будут отправляться с паузой в 3 секунды чтобы избежать капчи")
+        comment_text = input("Текст комментария: ")
+        for i in range(0, 5000, 100):
+            users = await self.sub_client.get_online_users(start=i, size=100)
+            if users.profile.userId:
+                for user_id in users.profile.userId:
+                    if user_id == self.sub_client.client.userId:
+                        continue
+                    try:
+                        await self.sub_client.comment(message=comment_text, userId=user_id)
+                        logger.info(f"{user_id} комментарий оставлен")
+                    except Exception as e:
+                        logger.error("[" + user_id + "]: " + e.args[0]["api:message"])
+                    time.sleep(3)
+            else:
+                break
+
+    async def wall_comment_all_latest_users(self):
+        logger.warning("Комментарии будут отправляться с паузой в 3 секунды чтобы избежать капчи")
+        comment_text = input("Текст комментария: ")
+        for i in range(0, 10000, 100):
+            users = await self.sub_client.get_all_users(start=i, size=100)
+            if users.profile.userId:
+                for user_id in users.profile.userId:
+                    if user_id == self.sub_client.client.userId:
+                        continue
+                    try:
+                        await self.sub_client.comment(message=comment_text, userId=user_id)
+                        logger.info(f"{user_id} комментарий оставлен")
+                    except Exception as e:
+                        logger.error("[" + user_id + "]: " + e.args[0]["api:message"])
+                    time.sleep(3)
+            else:
+                break
