@@ -2,8 +2,11 @@ import asyncio
 import time
 import traceback
 
-from src import database, amino_async
+from src import database, amino_async, configs
 from src.utils import service_align, logger, file_logger
+
+
+DEVICES = open(configs.DEVICES_PATH, "r").readlines()
 
 
 async def login(account: tuple):
@@ -15,7 +18,7 @@ async def login(account: tuple):
             await client.login(email, password)
             return client
         except amino_async.utils.exceptions.ActionNotAllowed:
-            client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
+            client.device_id = client.headers.device_id = random.choice(DEVICES).strip()
         except amino_async.utils.exceptions.VerificationRequired as verify:
             logger.error("[" + email + "]: " + str(verify.args[0]["url"]))
             await client.session.close()
@@ -38,7 +41,7 @@ async def login_sid(account: tuple):
                 await client.login_sid(sid)
                 return client
             except amino_async.utils.exceptions.ActionNotAllowed:
-                client.device_id = client.headers.device_id = amino_async.device.DeviceGenerator().get_device_id()
+                client.device_id = client.headers.device_id = random.choice(DEVICES).strip()
             except amino_async.utils.exceptions.VerificationRequired as verify:
                 service_align(email, verify.args[0]["url"], level="error")
                 await client.session.close()

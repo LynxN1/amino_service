@@ -5,6 +5,7 @@ DATABASE_PATH = os.path.join(os.getcwd(), "database.db")
 ICONS_PATH = os.path.join(os.getcwd(), "icons")
 CHAT_SETTINGS_PATH = os.path.join(os.getcwd(), "chat_settings")
 BOTS_TXT_PATH = os.path.join(os.getcwd(), "bots.txt")
+DEVICES_PATH = os.path.join(os.getcwd(), "src", "devices.txt")
 
 CHOICE_ACTION_TEXT = "Выберите действие: "
 
