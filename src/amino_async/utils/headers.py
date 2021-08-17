@@ -8,12 +8,9 @@ class Headers:
     def headers(self, data=None, content_type=None):
         headers = {
             "NDCDEVICEID": self.device_id,
-            "NDC-MSG-SIG": self.device_id_sig,
             "Accept-Language": "ru-UA",
-            "Content-Type": "application/json; charset=utf-8",
             "User-Agent": self.user_agent,
             "Host": "service.narvii.com",
-            "Accept-Encoding": "gzip",
             "Connection": "Keep-Alive"
         }
 
