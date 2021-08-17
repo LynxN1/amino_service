@@ -1,7 +1,6 @@
 class Headers:
     def __init__(self, device_info):
         self.device_id = device_info.device_id
-        self.device_id_sig = device_info.device_id_sig
         self.user_agent = device_info.user_agent
         self.sid = None
 

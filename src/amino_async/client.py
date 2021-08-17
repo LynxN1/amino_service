@@ -22,29 +22,7 @@ class Client:
         self.device = device.DeviceGenerator()
         self.user_agent = self.device.user_agent
         self.device_id = self.device.device_id
-        self.device_id_sig = self.device.device_id_sig
         self.headers = headers.Headers(self.device)
-
-    async def login_aminoapps(self, email, password):
-        data = json.dumps({
-            "auth_type": 0,
-            "email": f"{email}",
-            "recaptcha_challenge": "03AGdBq26dD6ppA9g1OH9_WKNAxYH0I75xHbr5dUm-U4K30TMQWaFhx-73x3kusXim_Ri7vJZuBL5GQ65WvGdMe_-jXaOcMeMEuH828-EvbX8tGTWz_K84eIBHzbEOhq1wm2viW7LG6qzKOWFJSnys6OqpO_BdblytI3Kop9SgKcT7x5_T6XkiA5kytMivnw8MuP_s_RFt4mJmTVFVnYNwEuwW1bzNukxb8LXovMY2H3o-bg8IpA_MAJMx-uFWfv7zDOM4n6-4j1mc_ZJFfu7ykIfAuo4xAFMo_D7yO9omPbPbRwhTejzGIb4a2wlOSCWc1Hmbj8zRShqPObD4hOjdHIDHirvlqCnUoQGcyiwowsZoSgU2LjTDJwXboU-fm-lbYM_6nOoz_8_woSwz_MZr3jyTzJMkz7tb15uDoMbWzcoBCg8ryiGStOuKmem-mjo1yhT0tU09UIsa",
-            "recaptcha_version": "v3",
-            "secret": password
-        })
-        response = requests.post("https://aminoapps.com/api/auth", data=data, headers={
-            "accept": "*/*",
-            "content-type": "application/json",
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-        })
-        if json.loads(response.text)["result"].get("isMember") is None:
-            raise Exception("Login failed")
-        else:
-            self.sid = response.cookies["sid"]
-            self.userId = helpers.sid_to_uid(self.sid)
-            self.headers.sid = self.sid
-            return response
 
     async def login(self, email, password):
         data = json.dumps({
