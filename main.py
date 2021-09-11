@@ -39,7 +39,9 @@ async def main():
                         f"Version    {__current__}\n"
                         f"Github     {__github__}\n"
                         f"Telegram   {__telegram__}\n", "green"))
-
+    logger.info("Проект закрыт. Мой телеграм канал: https://t.me/amino_dev0")
+    input()
+    exit(0)
     try:
         await ServiceApp().start()
     except Exception as e:
