@@ -84,7 +84,7 @@ def convert_from_txt():
     else:
         logger.warning("Файл пустой")
 
-
+ 
 class UsernameGenerator:
     def __init__(self, min_length: int = 0, max_length: int = 0):
         # command feedback for various arguments
